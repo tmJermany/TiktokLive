@@ -29,7 +29,8 @@ body {
   background: transparent;
   color: var(--text);
   font-family: var(--font);
-  font-size: 14px;
+  /* Escala fluida: 12px en pantallas pequeñas (300px), 16px en grandes (1200px) */
+  font-size: clamp(12px, 1.2vw, 16px);
   -webkit-font-smoothing: antialiased;
   user-select: none;
 }
@@ -43,7 +44,7 @@ button {
 button:focus-visible,
 input:focus-visible {
   outline: 2px solid var(--accent-cyan);
-  outline-offset: 2px;
+  outline-offset: 0.15em;
 }
 
 [hidden] {
@@ -55,7 +56,7 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 56px 8px 8px;
+  padding: clamp(4px, 5vh, 8px) clamp(4px, 2vw, 12px) clamp(4px, 2vw, 12px);
 }
 
 /* ------------------------------------------------------------------ */
@@ -67,9 +68,9 @@ input:focus-visible {
   z-index: 20;
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 40px;
-  padding: 0 6px 0 12px;
+  gap: clamp(0.4em, 1vw, 0.8em);
+  height: clamp(2.4em, 6vh, 3em);
+  padding: 0 clamp(0.3em, 0.8vw, 0.6em) 0 clamp(0.6em, 1.2vw, 1em);
   border-radius: var(--radius-md);
   background: var(--panel-strong);
   border: 1px solid var(--panel-border);
@@ -80,31 +81,31 @@ input:focus-visible {
 .brand {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 0.6em;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 0.95em;
   letter-spacing: 0.02em;
   white-space: nowrap;
 }
 
 .brand-dot {
-  width: 10px;
-  height: 10px;
+  width: 0.75em;
+  height: 0.75em;
   border-radius: 50%;
   background: var(--accent-pink);
-  box-shadow: -3px 0 0 var(--accent-cyan);
+  box-shadow: -0.2em 0 0 var(--accent-cyan);
 }
 
 .status {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: clamp(0.3em, 0.8vw, 0.5em);
   min-width: 0;
   margin-left: auto;
-  padding: 4px 10px;
+  padding: clamp(0.2em, 0.5vw, 0.4em) clamp(0.5em, 1.2vw, 0.8em);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
-  font-size: 12px;
+  font-size: 0.9em;
   color: var(--text-muted);
 }
 
@@ -115,8 +116,8 @@ input:focus-visible {
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
+  width: 0.6em;
+  height: 0.6em;
   flex-shrink: 0;
   border-radius: 50%;
   background: var(--text-faint);
@@ -141,26 +142,28 @@ input:focus-visible {
 
 .window-controls {
   display: flex;
-  gap: 2px;
+  gap: clamp(0.1em, 0.3vw, 0.2em);
   -webkit-app-region: no-drag;
 }
 
 .icon-btn {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: clamp(1.8em, 5vw, 2.2em);
+  height: clamp(1.8em, 5vw, 2.2em);
   padding: 0;
   border: 0;
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-muted);
   transition: background 0.15s, color 0.15s;
+  min-width: 28px;
+  min-height: 28px;
 }
 
 .icon-btn svg {
-  width: 16px;
-  height: 16px;
+  width: clamp(1em, 2.5vw, 1.2em);
+  height: clamp(1em, 2.5vw, 1.2em);
   fill: none;
   stroke: currentColor;
   stroke-width: 2;
@@ -191,9 +194,10 @@ input:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  height: 44px;
-  padding: 0 18px;
+  gap: clamp(0.4em, 1vw, 0.6em);
+  height: clamp(2.4em, 6vh, 2.8em);
+  padding: 0 clamp(0.9em, 2vw, 1.2em);
+  min-height: 32px;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   font-weight: 600;
@@ -229,10 +233,11 @@ input:focus-visible {
 }
 
 .btn.small {
-  height: 32px;
-  padding: 0 12px;
-  font-size: 12px;
+  height: clamp(1.8em, 4vh, 2.2em);
+  padding: 0 clamp(0.6em, 1.5vw, 0.8em);
+  font-size: 0.9em;
   border-radius: var(--radius-sm);
+  min-height: 28px;
 }
 
 .btn:disabled {
@@ -242,9 +247,9 @@ input:focus-visible {
 
 .spinner {
   display: none;
-  width: 16px;
-  height: 16px;
-  border: 2px solid rgba(255, 255, 255, 0.35);
+  width: 1em;
+  height: 1em;
+  border: 0.15em solid rgba(255, 255, 255, 0.35);
   border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
@@ -255,14 +260,19 @@ input:focus-visible {
 }
 
 .chip {
-  width: 32px;
-  height: 32px;
+  width: clamp(1.8em, 5vw, 2.2em);
+  height: clamp(1.8em, 5vw, 2.2em);
   padding: 0;
   border: 1px solid var(--panel-border);
   border-radius: var(--radius-sm);
   background: rgba(255, 255, 255, 0.05);
-  font-size: 15px;
+  font-size: 0.95em;
   transition: background 0.15s, transform 0.12s;
+  min-width: 28px;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .chip:hover {
@@ -407,7 +417,7 @@ input:focus-visible {
   min-height: 1.2em;
   margin: 0;
   color: var(--danger);
-  font-size: 13px;
+  font-size: 0.95em;
   line-height: 1.4;
 }
 
@@ -418,9 +428,9 @@ input:focus-visible {
 .setup-divider {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: clamp(0.5em, 1.2vw, 0.8em);
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: 0.9em;
 }
 
 .setup-divider::before,
@@ -434,7 +444,7 @@ input:focus-visible {
 .setup-hint {
   margin: 0;
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: 0.9em;
   line-height: 1.4;
 }
 
@@ -450,7 +460,7 @@ input:focus-visible {
   right: 8px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: clamp(0.3em, 0.8vw, 0.5em);
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
 
@@ -482,14 +492,14 @@ input:focus-visible {
 
 .stats {
   display: flex;
-  gap: 6px;
+  gap: clamp(0.3em, 0.8vw, 0.5em);
 }
 
 .stat {
   padding: 3px 10px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.06);
-  font-size: 12px;
+  font-size: 0.9em;
   color: var(--text-muted);
 }
 
@@ -522,7 +532,7 @@ input:focus-visible {
   border-radius: var(--radius-sm);
   background: rgba(255, 197, 61, 0.12);
   color: var(--warning);
-  font-size: 12px;
+  font-size: 0.9em;
   line-height: 1.4;
 }
 

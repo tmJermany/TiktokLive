@@ -180,7 +180,7 @@ function broadcast(type, data) {
 function createWindow() {
   // 9:16, the same shape as a TikTok LIVE, so the overlay lines up with the stream.
   const { workArea } = screen.getPrimaryDisplay();
-  const height = Math.min(820, workArea.height - 40);
+  const height = Math.min(1200, workArea.height - 20);
   const width = Math.round(height * STREAM_ASPECT_RATIO);
 
   mainWindow = new BrowserWindow({
@@ -188,8 +188,8 @@ function createWindow() {
     height,
     x: workArea.x + workArea.width - width - 24,
     y: workArea.y + Math.round((workArea.height - height) / 2),
-    minWidth: 300,
-    minHeight: Math.round(300 / STREAM_ASPECT_RATIO),
+    minWidth: 150,
+    minHeight: Math.round(150 / STREAM_ASPECT_RATIO),
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
