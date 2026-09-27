@@ -10,28 +10,48 @@
 </head>
 <body>
   <div id="app" class="app" data-view="setup">
-    <!-- Title bar: drag handle, connection status, window controls -->
-    <header class="titlebar">
-      <div class="brand">
-        <span class="brand-dot" aria-hidden="true"></span>
-        <span class="brand-name">LIVE Overlay</span>
+    <!-- Streamer controls: only visible while your mouse is over the overlay -->
+    <div class="hud" id="hud">
+      <header class="titlebar">
+        <div class="brand">
+          <span class="brand-dot" aria-hidden="true"></span>
+          <span class="brand-name">LIVE Overlay</span>
+        </div>
+        <div class="status" id="status" data-state="idle">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span class="status-text" id="status-text">Not connected</span>
+        </div>
+        <div class="window-controls">
+          <button class="icon-btn" id="btn-pin" title="Keep on top (on)" aria-pressed="true" aria-label="Keep on top">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3l7 7-3 1-4 4 1 4-2 2-4-5-5 5-1-1 5-5-5-4 2-2 4 1 4-4z"/></svg>
+          </button>
+          <button class="icon-btn" id="btn-minimize" title="Minimize" aria-label="Minimize">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>
+          </button>
+          <button class="icon-btn danger" id="btn-close" title="Close" aria-label="Close">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <div class="controls" id="controls">
+        <div class="stats">
+          <span class="stat" title="Viewers"><span aria-hidden="true">👁</span> <b id="stat-viewers">0</b></span>
+          <span class="stat" title="Coins received this session"><span aria-hidden="true">🪙</span> <b id="stat-coins">0</b></span>
+          <span class="stat mode-badge" id="mode-badge" hidden>DEMO</span>
+        </div>
+        <div class="controls-row">
+          <button class="btn small" id="btn-random" title="Pick a random big donor (R)">🎲 Random pick</button>
+          <div class="test-buttons" role="group" aria-label="Test effects">
+            <button class="chip" data-test="moneygun" title="Test Money Gun (1)">💸</button>
+            <button class="chip" data-test="galaxy" title="Test Galaxy (2)">🌌</button>
+            <button class="chip" data-test="rose" title="Test Roses (3)">🌹</button>
+          </div>
+          <button class="btn small ghost" id="btn-disconnect" title="Disconnect and change username">Disconnect</button>
+        </div>
+        <p class="hud-notice" id="hud-notice" role="status" hidden></p>
       </div>
-      <div class="status" id="status" data-state="idle">
-        <span class="status-dot" aria-hidden="true"></span>
-        <span class="status-text" id="status-text">Not connected</span>
-      </div>
-      <div class="window-controls">
-        <button class="icon-btn" id="btn-pin" title="Keep on top (on)" aria-pressed="true" aria-label="Keep on top">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3l7 7-3 1-4 4 1 4-2 2-4-5-5 5-1-1 5-5-5-4 2-2 4 1 4-4z"/></svg>
-        </button>
-        <button class="icon-btn" id="btn-minimize" title="Minimize" aria-label="Minimize">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>
-        </button>
-        <button class="icon-btn danger" id="btn-close" title="Close" aria-label="Close">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
-        </button>
-      </div>
-    </header>
+    </div>
 
     <!-- Step 1: ask for the TikTok username -->
     <section class="setup" id="setup" aria-labelledby="setup-title">
@@ -61,14 +81,10 @@
       </form>
     </section>
 
-    <!-- Step 2: live overlay -->
+    <!-- Step 2: what viewers see. Everything stays inside TikTok's safe zone:
+         below the profile/badges at the top, above the buttons at the bottom,
+         and away from the sides that tall phones crop. -->
     <main class="stage" id="stage">
-      <div class="stats" aria-live="off">
-        <span class="stat" title="Viewers"><span aria-hidden="true">👁</span> <b id="stat-viewers">0</b></span>
-        <span class="stat" title="Coins received this session"><span aria-hidden="true">🪙</span> <b id="stat-coins">0</b></span>
-        <span class="stat mode-badge" id="mode-badge" hidden>DEMO</span>
-      </div>
-
       <div class="alert-area" aria-live="polite">
         <div class="gift-alert" id="gift-alert" hidden>
           <img class="gift-alert-avatar" id="alert-avatar" alt="">
@@ -81,37 +97,29 @@
         <div class="toasts" id="toasts"></div>
       </div>
 
-      <div class="spotlight" id="spotlight" hidden>
-        <div class="spotlight-label">Selected viewer</div>
-        <div class="spotlight-body">
-          <img class="spotlight-avatar" id="spotlight-avatar" alt="">
-          <div>
-            <div class="spotlight-name" id="spotlight-name"></div>
-            <div class="spotlight-text" id="spotlight-text"></div>
-            <div class="spotlight-gifts" id="spotlight-gifts"></div>
+      <aside class="donor-column">
+        <div class="spotlight" id="spotlight" hidden>
+          <div class="spotlight-label">Selected viewer</div>
+          <div class="spotlight-body">
+            <img class="spotlight-avatar" id="spotlight-avatar" alt="">
+            <div class="spotlight-info">
+              <div class="spotlight-name" id="spotlight-name"></div>
+              <div class="spotlight-handle" id="spotlight-handle"></div>
+              <div class="spotlight-text" id="spotlight-text"></div>
+              <div class="spotlight-gifts" id="spotlight-gifts"></div>
+            </div>
           </div>
+          <button class="spotlight-close icon-btn" id="btn-spotlight-close" aria-label="Clear selection" title="Clear selection (Esc)">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
         </div>
-        <button class="spotlight-close icon-btn" id="btn-spotlight-close" aria-label="Clear selection" title="Clear selection (Esc)">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
-        </button>
-      </div>
 
-      <section class="chat" aria-label="Big donors">
-        <header class="chat-header">
-          <span>Big donors <span class="chat-sub">💸 Money Gun · 🌌 Galaxy</span></span>
-          <span class="chat-hint">Click to select</span>
-        </header>
-        <ol class="chat-list" id="chat-list"></ol>
-        <footer class="chat-footer">
-          <button class="btn small" id="btn-random" title="Pick a random big donor">🎲 Random pick</button>
-          <div class="test-buttons" role="group" aria-label="Test effects">
-            <button class="chip" data-test="moneygun" title="Test Money Gun (1)">💸</button>
-            <button class="chip" data-test="galaxy" title="Test Galaxy (2)">🌌</button>
-            <button class="chip" data-test="rose" title="Test Roses (3)">🌹</button>
-          </div>
-          <button class="btn small ghost" id="btn-disconnect" title="Disconnect and change username">Disconnect</button>
-        </footer>
-      </section>
+        <!-- Hidden until someone sends a Money Gun or Galaxy -->
+        <section class="donors empty" id="donors" aria-label="Big donors">
+          <header class="donors-header">Big donors <span>💸 🌌</span></header>
+          <ol class="chat-list" id="chat-list"></ol>
+        </section>
+      </aside>
     </main>
 
     <!-- Effects render above everything but never block clicks -->

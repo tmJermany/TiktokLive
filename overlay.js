@@ -12,6 +12,8 @@
   const MAX_REMEMBERED_CHATTERS = 1000;
   const MAX_VISIBLE_TOASTS = 3;
   const MIN_ALERT_MS = 4000;
+  const DONOR_PANEL_MS = 20000; // how long the donor list stays up after a donation
+  const HUD_IDLE_MS = 2500; // hide streamer controls after the mouse stops moving
 
   const GIFT_META = {
     moneygun: { icon: '💸' },
@@ -43,9 +45,13 @@
     spotlight: $('spotlight'),
     spotlightAvatar: $('spotlight-avatar'),
     spotlightName: $('spotlight-name'),
+    spotlightHandle: $('spotlight-handle'),
     spotlightText: $('spotlight-text'),
     spotlightGifts: $('spotlight-gifts'),
     chatList: $('chat-list'),
+    donors: $('donors'),
+    hud: $('hud'),
+    hudNotice: $('hud-notice'),
     fx: $('fx')
   };
 
@@ -149,6 +155,7 @@
     el.viewers.textContent = '0';
     stopEpics();
     resetDonors();
+    showNotice('');
   }
 
   function enterLive({ mode, username }) {
@@ -164,6 +171,8 @@
     stopEpics();
     effects.clear();
     clearSelection();
+    closeDonorPanel();
+    showNotice('');
     setStatus('idle', 'Not connected');
     setView('setup');
   }
@@ -181,17 +190,19 @@
         break;
       case 'reconnecting':
         setStatus('reconnecting', status.message || 'Reconnecting…');
+        showNotice(status.message || 'Reconnecting…');
         break;
       case 'connected':
         setStatus('connected', status.mode === 'demo' ? 'Demo mode' : `LIVE ${who}`);
+        showNotice('');
         break;
       case 'ended':
         setStatus('ended', 'LIVE ended');
-        addSystemMessage(status.message || 'The LIVE has ended.');
+        showNotice(status.message || 'The LIVE has ended.');
         break;
       case 'error':
         setStatus('error', 'Connection lost');
-        if (state.view === 'live') addSystemMessage(status.message || 'Connection error.');
+        if (state.view === 'live') showNotice(status.message || 'Connection error.');
         break;
       case 'disconnected':
         if (state.view === 'setup') setStatus('idle', 'Not connected');
@@ -352,10 +363,12 @@
     state.donors.set(key, donor);
 
     renderDonor(donor);
-    el.chatList.querySelector('.chat-empty:not(.system)')?.remove();
+    el.chatList.querySelector('.chat-empty')?.remove();
     el.chatList.prepend(donor.node); // newest donation on top
     el.chatList.scrollTop = 0;
+    el.donors.classList.remove('empty');
     trimDonors();
+    openDonorPanel();
     if (state.selectedUser === key) renderSpotlight();
   }
 
@@ -423,23 +436,62 @@
     state.lastMessages.clear();
     state.selectedUser = null;
     el.chatList.replaceChildren(emptyDonorsNode());
+    el.donors.classList.add('empty');
+    closeDonorPanel();
     el.spotlight.hidden = true;
   }
 
   function emptyDonorsNode() {
     const li = document.createElement('li');
     li.className = 'chat-empty';
-    li.textContent = 'Money Gun and Galaxy donors will appear here.';
+    li.textContent = 'Money Gun and Galaxy donors appear here';
     return li;
   }
 
-  function addSystemMessage(text) {
-    const li = document.createElement('li');
-    li.className = 'chat-empty system';
-    li.textContent = text;
-    el.chatList.prepend(li);
-    el.chatList.scrollTop = 0;
+  // -------------------------------------------------------------------------
+  // Visibility: keep the stream clean
+  // -------------------------------------------------------------------------
+
+  /** Shows the donor list for a while after a donation, then fades it out. */
+  let donorPanelTimer = null;
+  function openDonorPanel() {
+    el.donors.classList.add('open');
+    clearTimeout(donorPanelTimer);
+    donorPanelTimer = setTimeout(() => el.donors.classList.remove('open'), DONOR_PANEL_MS);
   }
+
+  function closeDonorPanel() {
+    clearTimeout(donorPanelTimer);
+    el.donors.classList.remove('open');
+  }
+
+  /**
+   * Streamer-only messages (reconnecting, LIVE ended…) go in the HUD, which
+   * stays visible while a notice is showing.
+   */
+  function showNotice(text) {
+    el.hudNotice.textContent = text || '';
+    el.hudNotice.hidden = !text;
+    el.app.classList.toggle('attention', Boolean(text));
+  }
+
+  /** The HUD appears while the mouse moves over the window and fades when idle. */
+  let pointerTimer = null;
+  function setPointerActive(active) {
+    el.app.classList.toggle('pointer-active', active);
+  }
+
+  document.addEventListener('mousemove', (event) => {
+    setPointerActive(true);
+    clearTimeout(pointerTimer);
+    // Keep controls up while you're using them.
+    if (event.target.closest('.hud, .donor-column')) return;
+    pointerTimer = setTimeout(() => setPointerActive(false), HUD_IDLE_MS);
+  });
+  document.documentElement.addEventListener('mouseleave', () => {
+    clearTimeout(pointerTimer);
+    pointerTimer = setTimeout(() => setPointerActive(false), 400);
+  });
 
   function selectDonor(username, { fromRandom = false } = {}) {
     const donor = state.donors.get(username);
@@ -466,7 +518,8 @@
     const { user, message } = donor;
     el.spotlightAvatar.src = user.avatar;
     el.spotlightAvatar.alt = user.nickname;
-    el.spotlightName.textContent = `${user.nickname}  ·  @${user.username}`;
+    el.spotlightName.textContent = user.nickname;
+    el.spotlightHandle.textContent = `@${user.username}`;
     el.spotlightText.textContent = message ? message.text : 'No messages yet';
     el.spotlightText.classList.toggle('muted', !message);
     el.spotlightGifts.textContent = `Sent ${giftSummary(donor.gifts)}`;
@@ -529,6 +582,9 @@
   document.addEventListener('keydown', (event) => {
     if (event.target instanceof HTMLInputElement) return;
     if (event.key === 'Escape') clearSelection();
+    if (event.key === 'r' || event.key === 'R') {
+      if (state.view === 'live') pickRandomDonor();
+    }
     if (event.key === '1') testGift('moneygun');
     if (event.key === '2') testGift('galaxy');
     if (event.key === '3') testGift('rose');

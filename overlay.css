@@ -55,8 +55,7 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 8px;
-  gap: 8px;
+  padding: 56px 8px 8px;
 }
 
 /* ------------------------------------------------------------------ */
@@ -440,32 +439,56 @@ input:focus-visible {
 }
 
 /* ------------------------------------------------------------------ */
-/* Live view                                                           */
+/* Streamer controls (HUD): only while the mouse is over the overlay    */
 /* ------------------------------------------------------------------ */
 
-.stage {
-  position: relative;
-  flex: 1;
+.hud {
+  position: absolute;
+  z-index: 30;
+  top: 8px;
+  left: 8px;
+  right: 8px;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
+  gap: 6px;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.app[data-view="setup"] .controls {
+  display: none;
+}
+
+/* Live: hide the HUD from the stream unless you're pointing at the window
+   (or something needs your attention, like a lost connection). */
+.app[data-view="live"]:not(.pointer-active):not(.attention) .hud {
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+}
+
+.app[data-view="live"]:not(.pointer-active):not(.attention) .titlebar {
+  -webkit-app-region: no-drag;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
   gap: 8px;
-  min-height: 0;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  background: var(--panel-strong);
+  border: 1px solid var(--panel-border);
 }
 
 .stats {
-  position: absolute;
-  top: 0;
-  left: 0;
   display: flex;
   gap: 6px;
 }
 
 .stat {
-  padding: 4px 10px;
+  padding: 3px 10px;
   border-radius: 999px;
-  background: var(--panel);
-  border: 1px solid var(--panel-border);
+  background: rgba(255, 255, 255, 0.06);
   font-size: 12px;
   color: var(--text-muted);
 }
@@ -481,27 +504,69 @@ input:focus-visible {
   letter-spacing: 0.08em;
 }
 
+.controls-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.test-buttons {
+  display: flex;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.hud-notice {
+  margin: 0;
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 197, 61, 0.12);
+  color: var(--warning);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* ------------------------------------------------------------------ */
+/* Stream layer: what viewers see                                      */
+/*                                                                     */
+/* The window is 9:16 like a TikTok LIVE. Safe zones keep everything   */
+/* clear of TikTok's own UI:                                           */
+/*   top    ~15%  profile pill, "Gaming Ranking", "LIVE Goal"          */
+/*   bottom ~12%  link / guests / share buttons                        */
+/*   sides   ~9%  cropped on tall phones (the video fills the height)  */
+/* Sizes use vw so the layout scales with the window.                  */
+/* ------------------------------------------------------------------ */
+
+.stage {
+  --safe-top: 15vh;
+  --safe-bottom: 12vh;
+  --safe-x: 11vw;
+  position: absolute;
+  inset: 0;
+  font-size: clamp(11px, 3.1vw, 26px);
+}
+
 /* Gift alerts sit above the effects canvas so the donor is always visible. */
 .alert-area {
   position: absolute;
   z-index: 10;
-  top: 40px;
-  left: 0;
-  right: 0;
+  top: var(--safe-top);
+  left: var(--safe-x);
+  right: var(--safe-x);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 1.6vw;
   pointer-events: none;
 }
 
 .gift-alert {
   display: flex;
   align-items: center;
-  gap: 12px;
-  width: min(100%, 380px);
-  padding: 12px 14px;
-  border-radius: var(--radius-lg);
+  gap: 3vw;
+  width: 100%;
+  padding: 2.6vw 3.2vw;
+  border-radius: 4vw;
   background: var(--panel-strong);
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
@@ -533,8 +598,8 @@ input:focus-visible {
 }
 
 .gift-alert-avatar {
-  width: 56px;
-  height: 56px;
+  width: 13vw;
+  height: 13vw;
   border: 2px solid var(--accent-cyan);
 }
 
@@ -545,7 +610,7 @@ input:focus-visible {
 
 .gift-alert-name {
   overflow: hidden;
-  font-size: 17px;
+  font-size: 1.3em;
   font-weight: 700;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -553,6 +618,7 @@ input:focus-visible {
 
 .gift-alert-gift {
   color: var(--text-muted);
+  font-size: 1.05em;
 }
 
 .gift-alert-gift b {
@@ -565,7 +631,7 @@ input:focus-visible {
 }
 
 .gift-alert-icon {
-  font-size: 34px;
+  font-size: 2.4em;
   animation: bob 1.2s ease-in-out infinite;
 }
 
@@ -573,20 +639,19 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 1.4vw;
   width: 100%;
 }
 
 .toast {
   display: flex;
   align-items: center;
-  gap: 8px;
-  max-width: min(100%, 320px);
-  padding: 6px 12px 6px 6px;
+  gap: 2vw;
+  max-width: 100%;
+  padding: 1.4vw 3vw 1.4vw 1.4vw;
   border-radius: 999px;
   background: var(--panel);
   border: 1px solid rgba(254, 44, 85, 0.35);
-  font-size: 13px;
   animation: toast-in 0.35s ease-out both;
 }
 
@@ -595,8 +660,8 @@ input:focus-visible {
 }
 
 .toast-avatar {
-  width: 26px;
-  height: 26px;
+  width: 6.5vw;
+  height: 6.5vw;
 }
 
 .toast-text {
@@ -609,21 +674,41 @@ input:focus-visible {
   font-weight: 700;
 }
 
-/* Spotlight: the selected viewer's message (kept above the effects canvas) */
+/* Donor column: bottom-right, above TikTok's buttons. TikTok draws its own
+   comments on the bottom-left for viewers, so this side stays clear. */
+.donor-column {
+  position: absolute;
+  z-index: 10;
+  right: var(--safe-x);
+  bottom: var(--safe-bottom);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 1.6vw;
+  width: 56vw;
+  max-height: calc(100vh - var(--safe-top) - var(--safe-bottom) - 26vh);
+  pointer-events: none;
+}
+
+.donor-column > * {
+  pointer-events: auto;
+}
+
+/* Spotlight: the selected viewer */
 .spotlight {
   position: relative;
-  z-index: 10;
-  padding: 10px 40px 12px 12px;
-  border-radius: var(--radius-md);
+  flex-shrink: 0;
+  padding: 2.2vw 8vw 2.4vw 2.6vw;
+  border-radius: 3.2vw;
   background: linear-gradient(135deg, rgba(37, 244, 238, 0.18), rgba(254, 44, 85, 0.18)), var(--panel-strong);
   border: 1px solid rgba(37, 244, 238, 0.45);
   animation: rise 0.3s ease-out;
 }
 
 .spotlight-label {
-  margin-bottom: 6px;
+  margin-bottom: 1.2vw;
   color: var(--accent-cyan);
-  font-size: 11px;
+  font-size: 0.72em;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -632,17 +717,24 @@ input:focus-visible {
 .spotlight-body {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 2.4vw;
+}
+
+.spotlight-info {
+  min-width: 0;
 }
 
 .spotlight-avatar {
-  width: 44px;
-  height: 44px;
+  width: 10vw;
+  height: 10vw;
   border: 2px solid var(--accent-pink);
 }
 
 .spotlight-name {
+  overflow: hidden;
   font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .spotlight-text {
@@ -657,95 +749,102 @@ input:focus-visible {
   font-style: italic;
 }
 
-.spotlight-gifts {
-  margin-top: 4px;
+.spotlight-handle {
+  overflow: hidden;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: 0.8em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spotlight-gifts {
+  margin-top: 0.6vw;
+  color: var(--text-muted);
+  font-size: 0.82em;
 }
 
 .spotlight-close {
   position: absolute;
-  top: 6px;
-  right: 6px;
+  top: 1vw;
+  right: 1vw;
 }
 
-/* Chat panel */
-.chat {
-  position: relative;
+/* Big donors: hidden until someone donates, then fades out again after a
+   while. Pointing at the window brings it back so you can pick a donor. */
+.donors {
   display: flex;
   flex-direction: column;
-  height: min(46%, 380px);
-  min-height: 180px;
-  border-radius: var(--radius-lg);
+  min-height: 0;
+  gap: 1vw;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(2vw);
+  transition: opacity 0.35s ease, transform 0.35s ease, visibility 0s linear 0.35s;
+}
+
+.donors.open:not(.empty),
+.app.pointer-active .donors {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+  transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.donors-header {
+  align-self: flex-end;
+  padding: 0.6vw 2.4vw;
+  border-radius: 999px;
   background: var(--panel);
-  border: 1px solid var(--panel-border);
-  overflow: hidden;
-}
-
-.chat-header {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 14px 6px;
+  color: var(--text-muted);
+  font-size: 0.72em;
   font-weight: 700;
-  font-size: 13px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
-.chat-sub {
-  margin-left: 4px;
-  color: var(--text-faint);
-  font-weight: 400;
-  font-size: 11px;
-}
-
-.chat-hint {
-  color: var(--text-faint);
-  font-weight: 400;
-  font-size: 11px;
+.donors-header span {
+  letter-spacing: 0;
 }
 
 .chat-list {
-  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1vw;
   min-height: 0;
+  max-height: 30vh;
   margin: 0;
-  padding: 2px 6px 6px;
+  padding: 0;
   list-style: none;
   overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  scrollbar-width: none;
 }
 
 .chat-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.chat-list::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 3px;
+  display: none;
 }
 
 .chat-item {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  align-items: center;
+  gap: 2vw;
   width: 100%;
-  padding: 6px 8px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-sm);
-  background: transparent;
+  padding: 1.4vw 2.8vw 1.4vw 1.4vw;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 5vw;
+  background: var(--panel);
+  font-size: 1em;
   text-align: left;
   animation: chat-in 0.25s ease-out;
   transition: background 0.12s, border-color 0.12s;
 }
 
 .chat-item:hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: var(--panel-strong);
 }
 
 .chat-item.selected {
-  background: rgba(37, 244, 238, 0.12);
-  border-color: rgba(37, 244, 238, 0.55);
+  background: rgba(20, 60, 64, 0.9);
+  border-color: rgba(37, 244, 238, 0.7);
 }
 
 .chat-item.picked {
@@ -757,62 +856,42 @@ input:focus-visible {
 }
 
 .chat-avatar {
-  width: 28px;
-  height: 28px;
-  margin-top: 1px;
+  width: 7vw;
+  height: 7vw;
 }
 
 .chat-content {
+  display: -webkit-box;
   flex: 1;
   min-width: 0;
-  line-height: 1.35;
+  overflow: hidden;
+  line-height: 1.3;
+  word-break: break-word;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .donor-badges {
   flex-shrink: 0;
-  margin-top: 2px;
   color: var(--text-muted);
-  font-size: 11.5px;
+  font-size: 0.8em;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 
 .chat-name {
-  margin-right: 6px;
+  margin-right: 0.35em;
   color: var(--accent-cyan);
-  font-weight: 600;
-  font-size: 12.5px;
-}
-
-.chat-text {
-  word-break: break-word;
-}
-
-.chat-empty.system {
-  padding: 8px 12px;
-  color: var(--warning);
+  font-weight: 700;
 }
 
 .chat-empty {
-  padding: 24px 12px;
+  padding: 2vw 3vw;
+  border-radius: 999px;
+  background: var(--panel);
   color: var(--text-faint);
   text-align: center;
-  font-size: 12.5px;
-}
-
-.chat-footer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 10px;
-  border-top: 1px solid var(--panel-border);
-  background: rgba(0, 0, 0, 0.18);
-}
-
-.test-buttons {
-  display: flex;
-  gap: 4px;
-  margin-left: auto;
+  font-size: 0.85em;
 }
 
 /* Effects canvas: fills the window, above panels, never intercepts clicks. */

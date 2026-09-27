@@ -22,6 +22,7 @@ const START_IN_DEMO = process.argv.includes('--demo');
 const BROADCAST_PORT = parsePort(process.env.OVERLAY_WS_PORT, 21213);
 const AVATAR_CACHE_LIMIT = 300;
 const AVATAR_MAX_BYTES = 512 * 1024;
+const STREAM_ASPECT_RATIO = 9 / 16;
 
 if (process.platform === 'linux') {
   // Required for transparent windows on most Linux compositors.
@@ -177,17 +178,18 @@ function broadcast(type, data) {
 // ---------------------------------------------------------------------------
 
 function createWindow() {
+  // 9:16, the same shape as a TikTok LIVE, so the overlay lines up with the stream.
   const { workArea } = screen.getPrimaryDisplay();
-  const width = 440;
   const height = Math.min(820, workArea.height - 40);
+  const width = Math.round(height * STREAM_ASPECT_RATIO);
 
   mainWindow = new BrowserWindow({
     width,
     height,
     x: workArea.x + workArea.width - width - 24,
     y: workArea.y + Math.round((workArea.height - height) / 2),
-    minWidth: 340,
-    minHeight: 520,
+    minWidth: 300,
+    minHeight: Math.round(300 / STREAM_ASPECT_RATIO),
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
@@ -207,6 +209,7 @@ function createWindow() {
     }
   });
 
+  mainWindow.setAspectRatio(STREAM_ASPECT_RATIO);
   mainWindow.setAlwaysOnTop(true, 'floating');
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   mainWindow.loadFile(path.join(__dirname, 'overlay.html'));
