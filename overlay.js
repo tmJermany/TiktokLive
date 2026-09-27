@@ -14,7 +14,10 @@
   const EARLIER_MESSAGES_MS = 2 * 60 * 1000; // include messages sent up to 2 min before donating
   const MAX_VISIBLE_TOASTS = 3;
   const MIN_ALERT_MS = 4000;
-  const HUD_IDLE_MS = 2500; // hide streamer controls after the mouse stops moving
+  const HUD_IDLE_MS = 2500; // hide streamer controls this long after the mouse leaves them
+  const HOT_ZONE_PX = 56; // rest the mouse in this strip at the top to show the controls
+  const HOT_ZONE_DWELL_MS = 350;
+  const CORNER_PX = 36; // bottom-right corner that shows the resize grip
 
   const GIFT_META = {
     moneygun: { icon: '💸' },
@@ -57,6 +60,7 @@
   const state = {
     view: 'setup',
     connecting: false,
+    resizing: false,
     mode: null,
     username: '',
     coins: 0,
@@ -81,6 +85,7 @@
   function setView(view) {
     state.view = view;
     el.app.dataset.view = view;
+    setClickThrough(view === 'live');
     if (view === 'setup') {
       requestAnimationFrame(() => el.input.focus());
     }
@@ -544,22 +549,89 @@
     el.app.classList.toggle('attention', Boolean(text));
   }
 
-  /** The HUD appears while the mouse moves over the window and fades when idle. */
-  let pointerTimer = null;
+  /**
+   * While live, clicks pass through the overlay to whatever is behind it
+   * (your browser, the game…), except over the controls, donor cards and
+   * resize grip. The controls only appear when you rest the mouse on the
+   * strip at the top, so using the window behind never shows them on stream.
+   */
+  let clickThrough = null;
+  function setClickThrough(on) {
+    if (on === clickThrough) return;
+    clickThrough = on;
+    api.setClickThrough(on);
+  }
+
+  let hideTimer = null;
+  let dwellTimer = null;
+  const pointerActive = () => el.app.classList.contains('pointer-active');
+
   function setPointerActive(active) {
     el.app.classList.toggle('pointer-active', active);
   }
 
-  document.addEventListener('mousemove', (event) => {
+  function keepControls() {
+    clearTimeout(hideTimer);
+    hideTimer = null;
     setPointerActive(true);
-    clearTimeout(pointerTimer);
-    // Keep controls up while you're using them.
-    if (event.target.closest('.hud, .queue')) return;
-    pointerTimer = setTimeout(() => setPointerActive(false), HUD_IDLE_MS);
+  }
+
+  function hideControlsSoon(ms) {
+    if (hideTimer || !pointerActive()) return;
+    hideTimer = setTimeout(() => {
+      hideTimer = null;
+      setPointerActive(false);
+      updateClickThrough();
+    }, ms);
+  }
+
+  const lastPointer = { x: -1, y: -1 };
+
+  function updateClickThrough() {
+    if (state.view !== 'live') return;
+    const target = document.elementFromPoint(lastPointer.x, lastPointer.y);
+    setClickThrough(!target?.closest('.hud, .donor-card, .resize-grip'));
+  }
+
+  function cancelDwell() {
+    clearTimeout(dwellTimer);
+    dwellTimer = null;
+  }
+
+  document.addEventListener('mousemove', (event) => {
+    if (state.resizing) return;
+    const { clientX: x, clientY: y } = event;
+    lastPointer.x = x;
+    lastPointer.y = y;
+    el.app.classList.toggle('corner-active', x > innerWidth - CORNER_PX && y > innerHeight - CORNER_PX);
+
+    const under = document.elementFromPoint(x, y);
+    if (under?.closest('.hud')) {
+      cancelDwell();
+      keepControls();
+    } else if (y < HOT_ZONE_PX) {
+      if (!pointerActive() && !dwellTimer) {
+        dwellTimer = setTimeout(() => {
+          dwellTimer = null;
+          keepControls();
+          updateClickThrough();
+        }, HOT_ZONE_DWELL_MS);
+      }
+    } else {
+      cancelDwell();
+      hideControlsSoon(HUD_IDLE_MS);
+    }
+
+    // Re-check after the classes above changed what's under the mouse.
+    updateClickThrough();
   });
+
   document.documentElement.addEventListener('mouseleave', () => {
-    clearTimeout(pointerTimer);
-    pointerTimer = setTimeout(() => setPointerActive(false), 400);
+    if (state.resizing) return;
+    cancelDwell();
+    el.app.classList.remove('corner-active');
+    hideControlsSoon(400);
+    if (state.view === 'live') setClickThrough(true);
   });
 
   // -------------------------------------------------------------------------
@@ -605,6 +677,7 @@
     if (event.button !== 0) return;
     grip.setPointerCapture(event.pointerId);
     drag = { x: event.screenX, y: event.screenY, dx: 0, dy: 0, frame: 0 };
+    state.resizing = true;
     api.resize('start');
   });
   grip.addEventListener('pointermove', (event) => {
@@ -623,6 +696,7 @@
     cancelAnimationFrame(drag.frame);
     api.resize('end', drag.dx, drag.dy);
     drag = null;
+    state.resizing = false;
   };
   grip.addEventListener('pointerup', endDrag);
   grip.addEventListener('pointercancel', endDrag);

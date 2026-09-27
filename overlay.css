@@ -850,7 +850,8 @@ input:focus-visible {
   gap: calc(1 * var(--u));
 }
 
-.app.pointer-active .donor-actions {
+.app.pointer-active .donor-actions,
+.donor-card:hover .donor-actions {
   display: flex;
 }
 
@@ -1054,11 +1055,12 @@ input:focus-visible {
 }
 
 .app.pointer-active .resize-grip,
+.app.corner-active .resize-grip,
 .app[data-view="setup"] .resize-grip {
   opacity: 1;
 }
 
-.app[data-view="live"]:not(.pointer-active) .resize-grip {
+.app[data-view="live"]:not(.pointer-active):not(.corner-active) .resize-grip {
   pointer-events: none;
 }
 

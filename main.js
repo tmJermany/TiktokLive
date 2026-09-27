@@ -339,6 +339,15 @@ function registerIpc() {
     return { ok: true };
   });
 
+  handle('overlay:click-through', (on) => {
+    // Windows and macOS keep sending mouse moves while clicks pass through,
+    // which the page needs to turn clicks back on over its controls. Linux
+    // can't, so there the window keeps its clicks.
+    if (!mainWindow || !['win32', 'darwin'].includes(process.platform)) return null;
+    mainWindow.setIgnoreMouseEvents(Boolean(on), { forward: true });
+    return null;
+  });
+
   handle('overlay:resize', (request = {}) => {
     resizeWindow({ phase: String(request.phase), dx: Number(request.dx), dy: Number(request.dy) });
     return null;

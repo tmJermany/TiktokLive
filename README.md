@@ -47,13 +47,14 @@ The window opens at **9:16**, the same shape as a TikTok LIVE. Place it over the
 
 When nobody is donating, the overlay is **completely transparent**. Your stream looks exactly as it does without it.
 
-- **Streamer controls** (title bar, viewers/coins, 🎲 Random pick, test buttons, Disconnect) appear only while your mouse moves over the window. They fade out 2.5 seconds after the mouse stops, but stay while you're pointing at them. If the connection drops or the LIVE ends, they stay visible with a message until it's resolved.
+- **Clicks pass through the overlay** while you're live (Windows and macOS). You can use the browser, game or anything else behind it as if the overlay weren't there. The only parts that take clicks are the controls, the donor cards and the resize grip.
+- **Streamer controls** (title bar, viewers/coins, 🎲 Random pick, test buttons, Disconnect) appear when you rest the mouse for a moment on the strip at the very top of the overlay. Just passing over it doesn't show them. They stay while you're pointing at them and fade out 2.5 seconds after you move away. If the connection drops or the LIVE ends, they stay visible with a message until it's resolved.
 - **The donor queue** is hidden while it's empty. Donors appear in the lower-right when they send a Money Gun or Galaxy, and each one stays until you mark them done.
-- **The ↻ and ✓ buttons** on each donor only show while your mouse is over the window, so they never appear on stream.
+- **The ↻ and ✓ buttons** on a donor card only show while your mouse is over that card (or the controls are open).
 
 To adjust the zones, edit `--safe-top`, `--safe-bottom` and `--safe-x` in `overlay.css` (`.stage`).
 
-> If you capture your whole screen, viewers also see the controls while your mouse is over the overlay. Move the mouse away, or use keyboard shortcuts, to keep the stream clean.
+> If you capture your whole screen, viewers also see the controls while they're open. Move the mouse away from them to keep the stream clean. Keyboard shortcuts work after you click the controls once.
 
 ### Donor queue
 
@@ -79,8 +80,8 @@ Other details:
 | Remove a donor | **✓** on their card |
 | Random donor pick | **🎲 Random pick** (or `R`) marks one waiting donor with 🎲, each with an equal chance. `Esc` clears it. |
 | Test effects | The 💸 🌌 🌹 buttons, or keys `1` `2` `3`. These work in live mode too. |
-| Move the window | Move the mouse over the overlay, then drag the title bar. |
-| Resize the window | Drag the grip in the bottom-right corner (or the window edges). Any size or shape from 240×320 up works. Everything scales to fit, and the overlay reopens at the size and position you leave it. |
+| Move the window | Rest the mouse at the top of the overlay until the controls appear, then drag the title bar. |
+| Resize the window | Move the mouse to the bottom-right corner and drag the grip that appears (or the window edges). Any size or shape from 240×320 up works. Everything scales to fit, and the overlay reopens at the size and position you leave it. |
 | Back to 9:16 | The **9:16** button in the title bar makes the window TikTok's shape again, keeping its height. |
 | Always on top | The pin button in the title bar. |
 | Change username | **Disconnect** |

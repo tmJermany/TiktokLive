@@ -28,6 +28,9 @@ contextBridge.exposeInMainWorld('overlayAPI', {
   /** @param {'minimize' | 'close' | 'toggle-pin' | 'fit-9-16'} action */
   windowAction: (action) => ipcRenderer.invoke('overlay:window', String(action)),
 
+  /** true: clicks pass through the window to whatever is behind it. */
+  setClickThrough: (on) => ipcRenderer.invoke('overlay:click-through', Boolean(on)),
+
   /** Resize from the corner grip: phase 'start', then 'move'/'end' with the pointer offset. */
   resize: (phase, dx = 0, dy = 0) =>
     ipcRenderer.invoke('overlay:resize', { phase: String(phase), dx: Number(dx), dy: Number(dy) }),
