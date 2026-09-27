@@ -1,6 +1,6 @@
 # TikTok LIVE Donation Overlay
 
-A floating, always-on-top Electron overlay for TikTok LIVE. Enter your TikTok username and it connects to your stream. Gifts trigger full-window effects that show the donor's name and profile picture. Below, a **big donor selector** lists everyone who sent a Money Gun or Galaxy, so you can pick among them. Regular chat is not shown.
+A floating, always-on-top Electron overlay for TikTok LIVE. Enter your TikTok username and it connects to your stream. Gifts trigger full-window effects that show the donor's name and profile picture. Everyone who sends a Money Gun or Galaxy goes into a **donor queue** with their messages, so you can copy the username they type and mark them done. Regular chat is not shown.
 
 - **Money Gun**: bills and coins fire from the bottom corners, then rain down across the window.
 - **Galaxy**: the screen cracks, shatters, and opens onto a rotating spiral galaxy.
@@ -18,7 +18,7 @@ npm run demo       # opens straight into demo mode
 
 1. Type your username (`yourname`, `@yourname`, or your profile URL all work).
 2. Press **Connect**. The overlay joins your LIVE and starts showing gifts and chat right away.
-3. Your username is remembered for next time.
+3. Your username is remembered. Next time the overlay reconnects to it automatically, without showing the setup screen.
 
 To try it without going live, click **Try demo mode** (or type `demo`).
 
@@ -39,38 +39,43 @@ The window is locked to **9:16**, the same shape as a TikTok LIVE, so you can pl
 | Zone | TikTok puts here | Overlay keeps clear |
 | --- | --- | --- |
 | Top ~15% | Your profile, "Gaming Ranking", "LIVE Goal" | Donor card starts below it |
-| Bottom ~12% | Link / guests / share buttons | Donor list sits above it |
+| Bottom ~12% | Link / guests / share buttons | Donor queue sits above it |
 | Sides ~11% | Cropped on tall phones (the video fills the phone's height) | Nothing important placed there |
-| Bottom-left | Viewers' comments | Donor list is on the right |
+| Bottom-left | Viewers' comments | Donor queue is on the right |
 
 When nobody is donating, the overlay is **completely transparent**. Your stream looks exactly as it does without it.
 
 - **Streamer controls** (title bar, viewers/coins, 🎲 Random pick, test buttons, Disconnect) appear only while your mouse moves over the window. They fade out 2.5 seconds after the mouse stops, but stay while you're pointing at them. If the connection drops or the LIVE ends, they stay visible with a message until it's resolved.
-- **The donor list** is hidden until someone sends a Money Gun or Galaxy. It then appears in the lower-right and fades out 20 seconds after the last big donation. Move your mouse over the overlay to bring it back and pick someone.
-- **The Selected viewer card** stays on screen until you clear it (✕ or `Esc`).
+- **The donor queue** is hidden while it's empty. Donors appear in the lower-right when they send a Money Gun or Galaxy, and each one stays until you mark them done.
+- **The ↻ and ✓ buttons** on each donor only show while your mouse is over the window, so they never appear on stream.
 
 To adjust the zones, edit `--safe-top`, `--safe-bottom` and `--safe-x` in `overlay.css` (`.stage`).
 
 > If you capture your whole screen, viewers also see the controls while your mouse is over the overlay. Move the mouse away, or use keyboard shortcuts, to keep the stream clean.
 
-### Big donor selector
+### Donor queue
 
-The panel at the bottom lists **only viewers who sent a Money Gun or Galaxy**. Each donor gets one row:
+Built for giveaways where donors type their username in chat:
 
-```
-username: their last chat message      💸×2 🌌×1
-```
+1. Someone sends a **Money Gun or Galaxy**. The effect plays, and a card for them joins the queue. The oldest donor is at the top.
+2. The card shows **only that person's messages**: up to their last 3, including anything they wrote in the 2 minutes before donating. It says "Waiting for their message…" until they write something.
+3. **Click a message to copy it**, then paste it wherever you need it (for example, the site where you send the game). The copied message is marked **✓ Copied**.
+4. If they wrote something that isn't their username, press **↻ Reset**. Their messages are cleared, and only what they write next appears.
+5. When you're done with them, press **✓ Done** to remove the card.
 
-- If a donor hasn't chatted, the row shows just their username. Their message appears as soon as they write one. A message sent *before* donating counts too.
-- The newest donation moves that donor to the top. Donors stay on the list for the whole session.
-- The badges show how many Money Guns (💸) and Galaxies (🌌) each donor sent.
-- Roses and other small gifts still play their effect and a small pop-up message, but they don't add anyone to the list.
-- When someone donates, the donor card appears at the top automatically, then disappears. Their row stays in the list for the whole session, even while the list is faded out.
+Other details:
+
+- One-word messages (no spaces) are highlighted, since those are most likely the username.
+- If the same person donates again while they're waiting, their existing card is updated instead of adding a second one.
+- Roses and other small gifts still play their effect and a small pop-up message, but they don't add anyone to the queue.
+- The donor card at the top still appears automatically on each donation, then disappears.
 
 | Action | How |
 | --- | --- |
-| Select a donor | Click their row. They're pinned in the **Selected viewer** card (name, last message, gifts), which updates live if they chat again. Click again, or press `Esc`, to clear. |
-| Random donor pick | **🎲 Random pick** (or `R`) picks one big donor, each donor with an equal chance. |
+| Copy a message | Click it |
+| Clear a donor's messages | **↻** on their card (visible while your mouse is over the window) |
+| Remove a donor | **✓** on their card |
+| Random donor pick | **🎲 Random pick** (or `R`) marks one waiting donor with 🎲, each with an equal chance. `Esc` clears it. |
 | Test effects | The 💸 🌌 🌹 buttons, or keys `1` `2` `3`. These work in live mode too. |
 | Move the window | Move the mouse over the overlay, then drag the title bar. |
 | Always on top | The pin button in the title bar. |
@@ -119,7 +124,7 @@ Event types are `gift`, `chat`, `viewers` and `status`. To save bandwidth on bus
 | `preload.js` | Security bridge. Exposes only `window.overlayAPI` to the page. |
 | `tiktok-connector.js` | Connection to TikTok LIVE by username, event normalization, and demo mode. |
 | `effects.js` | Canvas effects engine (money rain, galaxy, roses). |
-| `overlay.html` / `overlay.css` / `overlay.js` | UI: username setup, gift alerts, big donor selector. |
+| `overlay.html` / `overlay.css` / `overlay.js` | UI: username setup, gift alerts, donor queue. |
 | `test/` | Unit tests for the connector (`npm test`). |
 
 ## Security

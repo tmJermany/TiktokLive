@@ -1,6 +1,7 @@
 /**
- * Overlay renderer: username setup, gift alerts + effects, and the big-donor
- * selector (Money Gun / Galaxy donors with their last chat message). Talks to the main process only through
+ * Overlay renderer: username setup, gift alerts + effects, and the donor
+ * queue (Money Gun / Galaxy donors with their messages, so you can copy the
+ * username they type). Talks to the main process only through
  * window.overlayAPI (see preload.js).
  */
 (function () {
@@ -8,11 +9,11 @@
 
   const api = window.overlayAPI;
   const USERNAME_PATTERN = /^[A-Za-z0-9._]{2,24}$/;
-  const MAX_DONORS = 200;
   const MAX_REMEMBERED_CHATTERS = 1000;
+  const MESSAGES_PER_DONOR = 3; // most recent messages shown on a donor's card
+  const EARLIER_MESSAGES_MS = 2 * 60 * 1000; // include messages sent up to 2 min before donating
   const MAX_VISIBLE_TOASTS = 3;
   const MIN_ALERT_MS = 4000;
-  const DONOR_PANEL_MS = 20000; // how long the donor list stays up after a donation
   const HUD_IDLE_MS = 2500; // hide streamer controls after the mouse stops moving
 
   const GIFT_META = {
@@ -42,14 +43,9 @@
     alertCount: $('alert-count'),
     alertIcon: $('alert-icon'),
     toasts: $('toasts'),
-    spotlight: $('spotlight'),
-    spotlightAvatar: $('spotlight-avatar'),
-    spotlightName: $('spotlight-name'),
-    spotlightHandle: $('spotlight-handle'),
-    spotlightText: $('spotlight-text'),
-    spotlightGifts: $('spotlight-gifts'),
-    chatList: $('chat-list'),
-    donors: $('donors'),
+    queue: $('queue'),
+    queueList: $('queue-list'),
+    queueCount: $('queue-count'),
     hud: $('hud'),
     hudNotice: $('hud-notice'),
     fx: $('fx')
@@ -64,9 +60,9 @@
     mode: null,
     username: '',
     coins: 0,
-    donors: new Map(), // username -> { user, message, gifts, coins, node }, oldest donation first
-    lastMessages: new Map(), // username -> { text, timestamp } for every chatter
-    selectedUser: null,
+    queue: new Map(), // username -> donor waiting to be handled, oldest first
+    chatters: new Map(), // username -> their last few messages (every viewer)
+    pickedUser: null,
     epicQueue: [],
     epicPlaying: false
   };
@@ -154,7 +150,7 @@
     el.coins.textContent = '0';
     el.viewers.textContent = '0';
     stopEpics();
-    resetDonors();
+    resetQueue();
     showNotice('');
   }
 
@@ -170,8 +166,7 @@
     state.mode = null;
     stopEpics();
     effects.clear();
-    clearSelection();
-    closeDonorPanel();
+    clearPick();
     showNotice('');
     setStatus('idle', 'Not connected');
     setView('setup');
@@ -310,24 +305,26 @@
   }
 
   // -------------------------------------------------------------------------
-  // Big donors: one row per Money Gun / Galaxy donor with their last message
+  // Donor queue: Money Gun / Galaxy donors wait here with their messages
+  // until you've entered their username and mark them done.
   // -------------------------------------------------------------------------
 
-  /** Gifts that make someone a "big donor" (Money Gun, Galaxy, or equally valuable gifts). */
+  /** Gifts that put someone in the queue (Money Gun, Galaxy, or equally valuable gifts). */
   function isBigGift(gift) {
     return gift.effect === 'moneygun' || gift.effect === 'galaxy';
   }
 
   /**
-   * Remembers every viewer's latest message (not displayed) so a donor's last
-   * message is known even if they chatted before donating.
+   * Remembers every viewer's recent messages (not displayed) so a donor's
+   * username is available even if they typed it right before donating.
    */
   function rememberMessage(message) {
     const key = message.user.username;
-    state.lastMessages.delete(key);
-    state.lastMessages.set(key, { text: message.text, timestamp: message.timestamp });
-    if (state.lastMessages.size > MAX_REMEMBERED_CHATTERS) {
-      state.lastMessages.delete(state.lastMessages.keys().next().value);
+    const recent = (state.chatters.get(key) || []).concat(message).slice(-MESSAGES_PER_DONOR);
+    state.chatters.delete(key);
+    state.chatters.set(key, recent);
+    if (state.chatters.size > MAX_REMEMBERED_CHATTERS) {
+      state.chatters.delete(state.chatters.keys().next().value);
     }
   }
 
@@ -335,78 +332,89 @@
     if (!acceptingEvents()) return;
     rememberMessage(message);
 
-    const donor = state.donors.get(message.user.username);
-    if (!donor) return;
-    donor.message = state.lastMessages.get(message.user.username);
-    renderDonor(donor);
-    flash(donor.node.querySelector('.chat-item'), 'updated');
-    if (state.selectedUser === donor.user.username) renderSpotlight();
+    const donor = state.queue.get(message.user.username);
+    if (!donor || message.timestamp < donor.resetAt) return;
+    donor.messages = donor.messages.concat(message).slice(-MESSAGES_PER_DONOR);
+    renderMessages(donor);
+    flash(donor.node, 'updated');
   }
 
   function addDonor(gift) {
     const key = gift.user.username;
-    let donor = state.donors.get(key);
-    if (donor) {
-      state.donors.delete(key); // re-insert so the Map stays oldest-first
-    } else {
+    let donor = state.queue.get(key);
+    if (!donor) {
+      // Start with anything they wrote shortly before donating.
+      const since = Date.now() - EARLIER_MESSAGES_MS;
       donor = {
         user: gift.user,
-        message: state.lastMessages.get(key) || null,
         gifts: { moneygun: 0, galaxy: 0 },
-        coins: 0,
-        node: createDonorNode(key)
+        messages: (state.chatters.get(key) || []).filter((m) => m.timestamp >= since),
+        resetAt: 0,
+        copiedId: null,
+        node: createDonorCard(key)
       };
+      state.queue.set(key, donor);
+      el.queueList.append(donor.node); // oldest donor first, like a line
+      renderMessages(donor);
     }
     donor.user = gift.user;
     donor.gifts[gift.effect] += gift.count;
-    donor.coins += Number(gift.diamonds) || 0;
-    state.donors.set(key, donor);
-
-    renderDonor(donor);
-    el.chatList.querySelector('.chat-empty')?.remove();
-    el.chatList.prepend(donor.node); // newest donation on top
-    el.chatList.scrollTop = 0;
-    el.donors.classList.remove('empty');
-    trimDonors();
-    openDonorPanel();
-    if (state.selectedUser === key) renderSpotlight();
+    renderDonorHead(donor);
+    updateQueueState();
+    flash(donor.node, 'updated');
+    donor.node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
-  function trimDonors() {
-    for (const [key, donor] of state.donors) {
-      if (state.donors.size <= MAX_DONORS) break;
-      if (key === state.selectedUser) continue;
-      donor.node.remove();
-      state.donors.delete(key);
-    }
-  }
+  function createDonorCard(username) {
+    const card = document.createElement('li');
+    card.className = 'donor-card';
+    card.dataset.username = username;
 
-  function createDonorNode(username) {
-    const li = document.createElement('li');
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'chat-item donor';
-    button.dataset.username = username;
-    button.title = `Select @${username}`;
+    const head = document.createElement('div');
+    head.className = 'donor-head';
 
     const avatar = document.createElement('img');
-    avatar.className = 'chat-avatar';
+    avatar.className = 'donor-avatar';
     avatar.alt = '';
 
-    const content = document.createElement('div');
-    content.className = 'chat-content';
+    const id = document.createElement('div');
+    id.className = 'donor-id';
     const name = document.createElement('span');
-    name.className = 'chat-name';
-    const text = document.createElement('span');
-    text.className = 'chat-text';
-    content.append(name, text);
+    name.className = 'donor-name';
+    const handle = document.createElement('span');
+    handle.className = 'donor-handle';
+    const gifts = document.createElement('span');
+    gifts.className = 'donor-gifts';
+    const sub = document.createElement('div');
+    sub.className = 'donor-sub';
+    sub.append(handle, gifts);
+    id.append(name, sub);
 
-    const badges = document.createElement('span');
-    badges.className = 'donor-badges';
+    const actions = document.createElement('div');
+    actions.className = 'donor-actions';
+    actions.append(
+      actionButton('reset', '↻', 'Reset: clear their messages and wait for a new one'),
+      actionButton('done', '✓', 'Done: remove from the queue')
+    );
 
-    button.append(avatar, content, badges);
-    li.append(button);
-    return li;
+    head.append(avatar, id, actions);
+
+    const messages = document.createElement('ol');
+    messages.className = 'donor-messages';
+
+    card.append(head, messages);
+    return card;
+  }
+
+  function actionButton(action, label, title) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = `donor-action ${action}`;
+    button.dataset.action = action;
+    button.title = title;
+    button.setAttribute('aria-label', title);
+    button.textContent = label;
+    return button;
   }
 
   function giftSummary(gifts) {
@@ -416,13 +424,87 @@
       .join(' ');
   }
 
-  /** Row format: "username: last message", or just "username" if they haven't chatted. */
-  function renderDonor(donor) {
-    const { node, user, message } = donor;
-    node.querySelector('.chat-avatar').src = user.avatar;
-    node.querySelector('.chat-name').textContent = message ? `${user.username}:` : user.username;
-    node.querySelector('.chat-text').textContent = message ? message.text : '';
-    node.querySelector('.donor-badges').textContent = giftSummary(donor.gifts);
+  function renderDonorHead(donor) {
+    const { node, user } = donor;
+    node.querySelector('.donor-avatar').src = user.avatar;
+    node.querySelector('.donor-name').textContent = user.nickname;
+    node.querySelector('.donor-handle').textContent = `@${user.username}`;
+    node.querySelector('.donor-gifts').textContent = giftSummary(donor.gifts);
+  }
+
+  /** A single word (no spaces) is most likely the username they were asked for. */
+  function looksLikeUsername(text) {
+    return /^\S{3,40}$/.test(text.trim());
+  }
+
+  function renderMessages(donor) {
+    const list = donor.node.querySelector('.donor-messages');
+    if (!donor.messages.length) {
+      const waiting = document.createElement('li');
+      waiting.className = 'donor-waiting';
+      waiting.textContent = 'Waiting for their message…';
+      list.replaceChildren(waiting);
+      return;
+    }
+    list.replaceChildren(
+      ...donor.messages.map((message) => {
+        const li = document.createElement('li');
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'donor-message';
+        button.dataset.id = message.id;
+        button.title = 'Click to copy';
+        button.classList.toggle('likely', looksLikeUsername(message.text));
+        button.classList.toggle('copied', message.id === donor.copiedId);
+        button.textContent = message.text;
+        li.append(button);
+        return li;
+      })
+    );
+  }
+
+  async function copyMessage(donor, messageId) {
+    const message = donor.messages.find((m) => m.id === messageId);
+    if (!message) return;
+    const result = await api.copyText(message.text.trim());
+    if (!result?.ok) return;
+    donor.copiedId = message.id;
+    renderMessages(donor);
+  }
+
+  /** Clears what they've written so far; only new messages will show. */
+  function resetDonor(donor) {
+    donor.resetAt = Date.now();
+    donor.messages = [];
+    donor.copiedId = null;
+    renderMessages(donor);
+  }
+
+  function removeDonor(donor) {
+    const key = donor.user.username;
+    if (!state.queue.has(key)) return;
+    state.queue.delete(key);
+    if (state.pickedUser === key) state.pickedUser = null;
+    donor.node.classList.add('leaving');
+    setTimeout(() => {
+      donor.node.remove();
+      updateQueueState();
+    }, 250);
+    updateQueueState();
+  }
+
+  function updateQueueState() {
+    const empty = state.queue.size === 0;
+    el.queue.classList.toggle('empty', empty);
+    el.queueCount.textContent = empty ? '' : String(state.queue.size);
+  }
+
+  function resetQueue() {
+    state.queue.clear();
+    state.chatters.clear();
+    state.pickedUser = null;
+    el.queueList.replaceChildren();
+    updateQueueState();
   }
 
   function flash(node, className) {
@@ -431,39 +513,26 @@
     node.classList.add(className);
   }
 
-  function resetDonors() {
-    state.donors.clear();
-    state.lastMessages.clear();
-    state.selectedUser = null;
-    el.chatList.replaceChildren(emptyDonorsNode());
-    el.donors.classList.add('empty');
-    closeDonorPanel();
-    el.spotlight.hidden = true;
+  /** Marks one waiting donor at random, each donor with an equal chance. */
+  function pickRandomDonor() {
+    const usernames = [...state.queue.keys()];
+    if (!usernames.length) return;
+    clearPick();
+    state.pickedUser = usernames[Math.floor(Math.random() * usernames.length)];
+    const node = state.queue.get(state.pickedUser).node;
+    node.classList.add('picked');
+    flash(node, 'updated');
+    node.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
 
-  function emptyDonorsNode() {
-    const li = document.createElement('li');
-    li.className = 'chat-empty';
-    li.textContent = 'Money Gun and Galaxy donors appear here';
-    return li;
+  function clearPick() {
+    el.queueList.querySelector('.donor-card.picked')?.classList.remove('picked');
+    state.pickedUser = null;
   }
 
   // -------------------------------------------------------------------------
   // Visibility: keep the stream clean
   // -------------------------------------------------------------------------
-
-  /** Shows the donor list for a while after a donation, then fades it out. */
-  let donorPanelTimer = null;
-  function openDonorPanel() {
-    el.donors.classList.add('open');
-    clearTimeout(donorPanelTimer);
-    donorPanelTimer = setTimeout(() => el.donors.classList.remove('open'), DONOR_PANEL_MS);
-  }
-
-  function closeDonorPanel() {
-    clearTimeout(donorPanelTimer);
-    el.donors.classList.remove('open');
-  }
 
   /**
    * Streamer-only messages (reconnecting, LIVE ended…) go in the HUD, which
@@ -485,59 +554,13 @@
     setPointerActive(true);
     clearTimeout(pointerTimer);
     // Keep controls up while you're using them.
-    if (event.target.closest('.hud, .donor-column')) return;
+    if (event.target.closest('.hud, .queue')) return;
     pointerTimer = setTimeout(() => setPointerActive(false), HUD_IDLE_MS);
   });
   document.documentElement.addEventListener('mouseleave', () => {
     clearTimeout(pointerTimer);
     pointerTimer = setTimeout(() => setPointerActive(false), 400);
   });
-
-  function selectDonor(username, { fromRandom = false } = {}) {
-    const donor = state.donors.get(username);
-    if (!donor) return;
-    if (state.selectedUser === username && !fromRandom) {
-      clearSelection();
-      return;
-    }
-    el.chatList.querySelector('.chat-item.selected')?.classList.remove('selected');
-    const button = donor.node.querySelector('.chat-item');
-    button.classList.add('selected');
-    state.selectedUser = username;
-    renderSpotlight();
-
-    if (fromRandom) {
-      flash(button, 'picked');
-      button.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
-    }
-  }
-
-  function renderSpotlight() {
-    const donor = state.donors.get(state.selectedUser);
-    if (!donor) return;
-    const { user, message } = donor;
-    el.spotlightAvatar.src = user.avatar;
-    el.spotlightAvatar.alt = user.nickname;
-    el.spotlightName.textContent = user.nickname;
-    el.spotlightHandle.textContent = `@${user.username}`;
-    el.spotlightText.textContent = message ? message.text : 'No messages yet';
-    el.spotlightText.classList.toggle('muted', !message);
-    el.spotlightGifts.textContent = `Sent ${giftSummary(donor.gifts)}`;
-    el.spotlight.hidden = false;
-  }
-
-  function clearSelection() {
-    el.chatList.querySelector('.chat-item.selected')?.classList.remove('selected');
-    state.selectedUser = null;
-    el.spotlight.hidden = true;
-  }
-
-  /** Picks one big donor at random, each donor weighted equally. */
-  function pickRandomDonor() {
-    const usernames = [...state.donors.keys()];
-    if (!usernames.length) return;
-    selectDonor(usernames[Math.floor(Math.random() * usernames.length)], { fromRandom: true });
-  }
 
   // -------------------------------------------------------------------------
   // Wiring
@@ -556,10 +579,17 @@
 
   $('btn-disconnect').addEventListener('click', disconnect);
   $('btn-random').addEventListener('click', pickRandomDonor);
-  $('btn-spotlight-close').addEventListener('click', clearSelection);
-  el.chatList.addEventListener('click', (event) => {
-    const item = event.target.closest('.chat-item');
-    if (item) selectDonor(item.dataset.username);
+  el.queueList.addEventListener('click', (event) => {
+    const card = event.target.closest('.donor-card');
+    const donor = card && state.queue.get(card.dataset.username);
+    if (!donor) return;
+    const action = event.target.closest('[data-action]')?.dataset.action;
+    if (action === 'done') removeDonor(donor);
+    else if (action === 'reset') resetDonor(donor);
+    else {
+      const message = event.target.closest('.donor-message');
+      if (message) copyMessage(donor, message.dataset.id);
+    }
   });
   document.querySelectorAll('[data-test]').forEach((button) => {
     button.addEventListener('click', () => testGift(button.dataset.test));
@@ -581,7 +611,7 @@
 
   document.addEventListener('keydown', (event) => {
     if (event.target instanceof HTMLInputElement) return;
-    if (event.key === 'Escape') clearSelection();
+    if (event.key === 'Escape') clearPick();
     if (event.key === 'r' || event.key === 'R') {
       if (state.view === 'live') pickRandomDonor();
     }
@@ -612,7 +642,7 @@
     if (settings.autoStart === 'demo') {
       connect({ demo: true });
     } else if (settings.lastUsername) {
-      // Auto-connect con el usuario guardado, sin mostrar setup
+      // Reconnect to the saved username straight away.
       el.input.value = settings.lastUsername;
       connect();
     } else {

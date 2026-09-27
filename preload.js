@@ -19,6 +19,9 @@ contextBridge.exposeInMainWorld('overlayAPI', {
 
   disconnect: () => ipcRenderer.invoke('overlay:disconnect'),
 
+  /** Copies text (e.g. a donor's username) to the clipboard. */
+  copyText: (text) => ipcRenderer.invoke('overlay:copy', String(text ?? '')),
+
   /** @param {'moneygun' | 'galaxy' | 'rose'} effect */
   testGift: (effect) => ipcRenderer.invoke('overlay:test-gift', String(effect)),
 

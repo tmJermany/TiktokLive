@@ -8,7 +8,7 @@
 
 const path = require('node:path');
 const fs = require('node:fs');
-const { app, BrowserWindow, ipcMain, session, screen } = require('electron');
+const { app, BrowserWindow, clipboard, ipcMain, session, screen } = require('electron');
 const axios = require('axios');
 const { WebSocketServer } = require('ws');
 const {
@@ -261,6 +261,14 @@ function registerIpc() {
 
   handle('overlay:disconnect', async () => {
     await connector.disconnect();
+    return { ok: true };
+  });
+
+  handle('overlay:copy', async (text) => {
+    const value = String(text ?? '').slice(0, 500);
+    if (!value) return { ok: false };
+    // Newer Electron versions make clipboard calls async; await covers both.
+    await clipboard.writeText(value);
     return { ok: true };
   });
 
