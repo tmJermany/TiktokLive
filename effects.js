@@ -245,7 +245,7 @@
       this.nextBurst = 0;
       this.rainAccumulator = 0;
       this.particles = [];
-      this.maxParticles = 420;
+      this.maxParticles = 850;  // Más billetes para efecto más épico
       this.done = false;
     }
 
@@ -255,7 +255,7 @@
 
     spawnBill(x, y, vx, vy, fromGun) {
       if (this.particles.length >= this.maxParticles) return;
-      const isCoin = Math.random() < 0.16;
+      const isCoin = Math.random() < 0.25;  // Más monedas (brillo extra)
       this.particles.push({
         x,
         y,
@@ -297,7 +297,7 @@
       }
 
       if (this.time > 0.6 && this.time < this.rainUntil) {
-        const rate = 34 * clamp(width / 420, 0.7, 2.2);
+        const rate = 55 * clamp(width / 420, 0.8, 2.4);  // Lluvia más densa
         this.rainAccumulator += dt * rate;
         while (this.rainAccumulator >= 1) {
           this.rainAccumulator--;
@@ -332,7 +332,7 @@
       // Golden flash when the guns start firing.
       if (this.time < 0.8) {
         const a = 0.35 * (1 - this.time / 0.8);
-        const g = ctx.createRadialGradient(width / 2, height, 0, width / 2, height, height);
+        const g = ctx.createRadialGradient(width / 2, height, 0, width / 2, height, height * 1.2);
         g.addColorStop(0, `rgba(255, 215, 90, ${a})`);
         g.addColorStop(1, 'rgba(255, 215, 90, 0)');
         ctx.fillStyle = g;
@@ -448,7 +448,7 @@
       this.galaxyRadius = radius;
       this.arms = 3 + Math.min(count - 1, 2);
       this.stars = [];
-      const starCount = Math.round(clamp((width * height) / 260, 600, 1400));
+      const starCount = Math.round(clamp((width * height) / 180, 1200, 2500));  // Más estrellas
       const palette = [
         [255, 255, 255],
         [196, 170, 255],
@@ -477,7 +477,7 @@
         size: rand(0.4, 1.4),
         twinkle: rand(0, TAU)
       }));
-      this.nebulae = Array.from({ length: 5 }, (_, i) => ({
+      this.nebulae = Array.from({ length: 8 }, (_, i) => ({  // Más nebulosas coloridas
         angle: (i / 5) * TAU + rand(-0.3, 0.3),
         dist: rand(0.15, 0.55) * radius,
         size: rand(0.55, 0.95) * radius,

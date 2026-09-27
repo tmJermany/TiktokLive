@@ -608,12 +608,15 @@
   });
 
   (async function init() {
-    setView('setup');
     const settings = await api.getSettings();
-    if (settings.lastUsername) {
+    if (settings.autoStart === 'demo') {
+      connect({ demo: true });
+    } else if (settings.lastUsername) {
+      // Auto-connect con el usuario guardado, sin mostrar setup
       el.input.value = settings.lastUsername;
-      el.input.select();
+      connect();
+    } else {
+      setView('setup');
     }
-    if (settings.autoStart === 'demo') connect({ demo: true });
   })();
 })();
