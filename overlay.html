@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TikTok LIVE Overlay</title>
+  <link rel="stylesheet" href="overlay.css">
+</head>
+<body>
+  <div id="app" class="app" data-view="setup">
+    <!-- Title bar: drag handle, connection status, window controls -->
+    <header class="titlebar">
+      <div class="brand">
+        <span class="brand-dot" aria-hidden="true"></span>
+        <span class="brand-name">LIVE Overlay</span>
+      </div>
+      <div class="status" id="status" data-state="idle">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span class="status-text" id="status-text">Not connected</span>
+      </div>
+      <div class="window-controls">
+        <button class="icon-btn" id="btn-pin" title="Keep on top (on)" aria-pressed="true" aria-label="Keep on top">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3l7 7-3 1-4 4 1 4-2 2-4-5-5 5-1-1 5-5-5-4 2-2 4 1 4-4z"/></svg>
+        </button>
+        <button class="icon-btn" id="btn-minimize" title="Minimize" aria-label="Minimize">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14"/></svg>
+        </button>
+        <button class="icon-btn danger" id="btn-close" title="Close" aria-label="Close">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- Step 1: ask for the TikTok username -->
+    <section class="setup" id="setup" aria-labelledby="setup-title">
+      <form class="setup-card" id="setup-form" novalidate>
+        <div class="setup-logo" aria-hidden="true">
+          <span></span><span></span><span></span>
+        </div>
+        <h1 id="setup-title">Connect your LIVE</h1>
+        <p class="setup-sub">Enter your TikTok username. Gifts and chat show up automatically. You don't need to log in or add API keys.</p>
+
+        <label class="field" for="username">
+          <span class="field-prefix" aria-hidden="true">@</span>
+          <input id="username" name="username" type="text" autocomplete="off" autocapitalize="off"
+                 spellcheck="false" maxlength="64" placeholder="your_username" aria-describedby="setup-error" required>
+        </label>
+
+        <button type="submit" class="btn primary" id="btn-connect">
+          <span class="btn-label">Connect</span>
+          <span class="spinner" aria-hidden="true"></span>
+        </button>
+
+        <p class="setup-error" id="setup-error" role="alert"></p>
+
+        <div class="setup-divider"><span>or</span></div>
+        <button type="button" class="btn ghost" id="btn-demo">Try demo mode</button>
+        <p class="setup-hint">Demo mode sends simulated gifts every 10–15 seconds so you can preview every effect.</p>
+      </form>
+    </section>
+
+    <!-- Step 2: live overlay -->
+    <main class="stage" id="stage">
+      <div class="stats" aria-live="off">
+        <span class="stat" title="Viewers"><span aria-hidden="true">👁</span> <b id="stat-viewers">0</b></span>
+        <span class="stat" title="Coins received this session"><span aria-hidden="true">🪙</span> <b id="stat-coins">0</b></span>
+        <span class="stat mode-badge" id="mode-badge" hidden>DEMO</span>
+      </div>
+
+      <div class="alert-area" aria-live="polite">
+        <div class="gift-alert" id="gift-alert" hidden>
+          <img class="gift-alert-avatar" id="alert-avatar" alt="">
+          <div class="gift-alert-body">
+            <div class="gift-alert-name" id="alert-name"></div>
+            <div class="gift-alert-gift">sent <b id="alert-gift"></b> <span class="gift-alert-count" id="alert-count"></span></div>
+          </div>
+          <div class="gift-alert-icon" id="alert-icon" aria-hidden="true"></div>
+        </div>
+        <div class="toasts" id="toasts"></div>
+      </div>
+
+      <div class="spotlight" id="spotlight" hidden>
+        <div class="spotlight-label">Selected viewer</div>
+        <div class="spotlight-body">
+          <img class="spotlight-avatar" id="spotlight-avatar" alt="">
+          <div>
+            <div class="spotlight-name" id="spotlight-name"></div>
+            <div class="spotlight-text" id="spotlight-text"></div>
+          </div>
+        </div>
+        <button class="spotlight-close icon-btn" id="btn-spotlight-close" aria-label="Clear selection" title="Clear selection (Esc)">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+
+      <section class="chat" aria-label="Live chat">
+        <header class="chat-header">
+          <span>Live chat</span>
+          <span class="chat-hint">Click a message to select a viewer</span>
+        </header>
+        <ol class="chat-list" id="chat-list"></ol>
+        <button class="chat-jump" id="chat-jump" hidden>New messages ↓</button>
+        <footer class="chat-footer">
+          <button class="btn small" id="btn-random" title="Pick a random viewer from recent chat">🎲 Random pick</button>
+          <div class="test-buttons" role="group" aria-label="Test effects">
+            <button class="chip" data-test="moneygun" title="Test Money Gun (1)">💸</button>
+            <button class="chip" data-test="galaxy" title="Test Galaxy (2)">🌌</button>
+            <button class="chip" data-test="rose" title="Test Roses (3)">🌹</button>
+          </div>
+          <button class="btn small ghost" id="btn-disconnect" title="Disconnect and change username">Disconnect</button>
+        </footer>
+      </section>
+    </main>
+
+    <!-- Effects render above everything but never block clicks -->
+    <canvas class="fx" id="fx" aria-hidden="true"></canvas>
+  </div>
+
+  <script src="effects.js"></script>
+  <script src="overlay.js"></script>
+</body>
+</html>
