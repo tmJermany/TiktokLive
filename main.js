@@ -23,6 +23,8 @@ const BROADCAST_PORT = parsePort(process.env.OVERLAY_WS_PORT, 21213);
 const AVATAR_CACHE_LIMIT = 300;
 const AVATAR_MAX_BYTES = 512 * 1024;
 const STREAM_ASPECT_RATIO = 9 / 16;
+const MIN_WIDTH = 240;
+const MIN_HEIGHT = 320;
 
 if (process.platform === 'linux') {
   // Required for transparent windows on most Linux compositors.
@@ -177,19 +179,40 @@ function broadcast(type, data) {
 // Window
 // ---------------------------------------------------------------------------
 
-function createWindow() {
-  // 9:16, the same shape as a TikTok LIVE, so the overlay lines up with the stream.
+/** The last saved window position/size, if it's still on a connected screen. */
+function savedBounds() {
+  const saved = readSettings().windowBounds;
+  if (!saved || ![saved.x, saved.y, saved.width, saved.height].every(Number.isFinite)) return null;
+  const visible = screen.getAllDisplays().some(({ workArea: a }) =>
+    saved.x < a.x + a.width - 40 && saved.x + saved.width > a.x + 40 &&
+    saved.y < a.y + a.height - 40 && saved.y + saved.height > a.y + 40);
+  if (!visible) return null;
+  return {
+    x: Math.round(saved.x),
+    y: Math.round(saved.y),
+    width: Math.max(MIN_WIDTH, Math.round(saved.width)),
+    height: Math.max(MIN_HEIGHT, Math.round(saved.height))
+  };
+}
+
+function defaultBounds() {
+  // 9:16, the same shape as a TikTok LIVE.
   const { workArea } = screen.getPrimaryDisplay();
   const height = Math.min(820, workArea.height - 40);
   const width = Math.round(height * STREAM_ASPECT_RATIO);
-
-  mainWindow = new BrowserWindow({
+  return {
     width,
     height,
     x: workArea.x + workArea.width - width - 24,
-    y: workArea.y + Math.round((workArea.height - height) / 2),
-    minWidth: 300,
-    minHeight: Math.round(300 / STREAM_ASPECT_RATIO),
+    y: workArea.y + Math.round((workArea.height - height) / 2)
+  };
+}
+
+function createWindow() {
+  mainWindow = new BrowserWindow({
+    ...(savedBounds() || defaultBounds()),
+    minWidth: MIN_WIDTH,
+    minHeight: MIN_HEIGHT,
     frame: false,
     transparent: true,
     backgroundColor: '#00000000',
@@ -209,7 +232,6 @@ function createWindow() {
     }
   });
 
-  mainWindow.setAspectRatio(STREAM_ASPECT_RATIO);
   mainWindow.setAlwaysOnTop(true, 'floating');
   mainWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
   mainWindow.loadFile(path.join(__dirname, 'overlay.html'));
@@ -219,8 +241,53 @@ function createWindow() {
   mainWindow.webContents.on('will-navigate', (event) => event.preventDefault());
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
+  // Remember where you leave the window and how big it is.
+  let saveTimer = null;
+  const saveBounds = () => {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isMinimized()) {
+        writeSettings({ windowBounds: mainWindow.getBounds() });
+      }
+    }, 400);
+  };
+  mainWindow.on('resize', saveBounds);
+  mainWindow.on('move', saveBounds);
+
   mainWindow.on('closed', () => {
+    clearTimeout(saveTimer);
     mainWindow = null;
+  });
+}
+
+/** Resizing from the in-window grip (works even where the OS can't resize transparent windows). */
+let resizeStart = null;
+
+function resizeWindow({ phase, dx, dy }) {
+  if (!mainWindow) return;
+  if (phase === 'start') {
+    resizeStart = mainWindow.getBounds();
+    return;
+  }
+  if (!resizeStart || !Number.isFinite(dx) || !Number.isFinite(dy)) return;
+  mainWindow.setBounds({
+    ...resizeStart,
+    width: Math.max(MIN_WIDTH, Math.round(resizeStart.width + dx)),
+    height: Math.max(MIN_HEIGHT, Math.round(resizeStart.height + dy))
+  });
+  if (phase === 'end') resizeStart = null;
+}
+
+/** Makes the window exactly 9:16, keeping its height and centre. */
+function fitToStreamShape() {
+  const bounds = mainWindow.getBounds();
+  const width = Math.max(MIN_WIDTH, Math.round(bounds.height * STREAM_ASPECT_RATIO));
+  const height = Math.round(width / STREAM_ASPECT_RATIO);
+  mainWindow.setBounds({
+    x: Math.round(bounds.x + (bounds.width - width) / 2),
+    y: bounds.y,
+    width,
+    height
   });
 }
 
@@ -272,6 +339,11 @@ function registerIpc() {
     return { ok: true };
   });
 
+  handle('overlay:resize', (request = {}) => {
+    resizeWindow({ phase: String(request.phase), dx: Number(request.dx), dy: Number(request.dy) });
+    return null;
+  });
+
   handle('overlay:test-gift', (effect) => {
     if (!Object.values(EFFECTS).includes(effect)) return { ok: false };
     connector.triggerTestGift(effect);
@@ -286,6 +358,9 @@ function registerIpc() {
         return null;
       case 'close':
         mainWindow.close();
+        return null;
+      case 'fit-9-16':
+        fitToStreamShape();
         return null;
       case 'toggle-pin': {
         const pinned = !mainWindow.isAlwaysOnTop();

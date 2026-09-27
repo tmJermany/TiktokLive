@@ -22,6 +22,7 @@
           <span class="status-text" id="status-text">Not connected</span>
         </div>
         <div class="window-controls">
+          <button class="icon-btn text" id="btn-fit" title="Make the window 9:16 (TikTok's shape)" aria-label="Make the window 9:16">9:16</button>
           <button class="icon-btn" id="btn-pin" title="Keep on top (on)" aria-pressed="true" aria-label="Keep on top">
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 3l7 7-3 1-4 4 1 4-2 2-4-5-5 5-1-1 5-5-5-4 2-2 4 1 4-4z"/></svg>
           </button>
@@ -108,6 +109,9 @@
 
     <!-- Effects render above everything but never block clicks -->
     <canvas class="fx" id="fx" aria-hidden="true"></canvas>
+
+    <!-- Drag to resize (only visible while your mouse is over the window) -->
+    <div class="resize-grip" id="resize-grip" title="Drag to resize" aria-hidden="true"></div>
   </div>
 
   <script src="effects.js"></script>

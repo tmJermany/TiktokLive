@@ -596,6 +596,36 @@
   });
 
   $('btn-minimize').addEventListener('click', () => api.windowAction('minimize'));
+  $('btn-fit').addEventListener('click', () => api.windowAction('fit-9-16'));
+
+  // Corner grip: the main process resizes from the size the window had when the drag began.
+  const grip = $('resize-grip');
+  let drag = null;
+  grip.addEventListener('pointerdown', (event) => {
+    if (event.button !== 0) return;
+    grip.setPointerCapture(event.pointerId);
+    drag = { x: event.screenX, y: event.screenY, dx: 0, dy: 0, frame: 0 };
+    api.resize('start');
+  });
+  grip.addEventListener('pointermove', (event) => {
+    if (!drag) return;
+    drag.dx = event.screenX - drag.x;
+    drag.dy = event.screenY - drag.y;
+    if (drag.frame) return;
+    drag.frame = requestAnimationFrame(() => {
+      if (!drag) return;
+      drag.frame = 0;
+      api.resize('move', drag.dx, drag.dy);
+    });
+  });
+  const endDrag = () => {
+    if (!drag) return;
+    cancelAnimationFrame(drag.frame);
+    api.resize('end', drag.dx, drag.dy);
+    drag = null;
+  };
+  grip.addEventListener('pointerup', endDrag);
+  grip.addEventListener('pointercancel', endDrag);
   $('btn-close').addEventListener('click', () => api.windowAction('close'));
   $('btn-pin').addEventListener('click', async (event) => {
     const button = event.currentTarget;

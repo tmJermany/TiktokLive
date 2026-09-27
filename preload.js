@@ -25,8 +25,12 @@ contextBridge.exposeInMainWorld('overlayAPI', {
   /** @param {'moneygun' | 'galaxy' | 'rose'} effect */
   testGift: (effect) => ipcRenderer.invoke('overlay:test-gift', String(effect)),
 
-  /** @param {'minimize' | 'close' | 'toggle-pin'} action */
+  /** @param {'minimize' | 'close' | 'toggle-pin' | 'fit-9-16'} action */
   windowAction: (action) => ipcRenderer.invoke('overlay:window', String(action)),
+
+  /** Resize from the corner grip: phase 'start', then 'move'/'end' with the pointer offset. */
+  resize: (phase, dx = 0, dy = 0) =>
+    ipcRenderer.invoke('overlay:resize', { phase: String(phase), dx: Number(dx), dy: Number(dy) }),
 
   /**
    * Subscribes to connector events ({ type, data }). Returns an unsubscribe function.

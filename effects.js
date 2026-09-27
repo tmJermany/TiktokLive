@@ -647,7 +647,7 @@
       this.layers = [[], [], []]; // far, mid, near
       this.sparks = [];
       this.muzzles = [];
-      this.maxParticles = Math.round(480 * engine.quality);
+      this.maxParticles = Math.round(480 * engine.quality * Math.min(engine.spread, 1.6));
       this.pile = makeCanvas(engine.width, engine.height, engine.dpr);
       this.pileHeights = new Float32Array(PILE_COLUMNS);
       this.pileCount = 0;
@@ -672,7 +672,7 @@
         z,
         coin,
         fromGun,
-        size: this.engine.width * 0.19 * z * (coin ? 0.3 : rand(0.9, 1.08)),
+        size: this.engine.size * 0.19 * z * (coin ? 0.3 : rand(0.9, 1.08)),
         rotation: rand(0, TAU),
         spin: rand(-2.4, 2.4),
         flip: rand(0, TAU),
@@ -711,7 +711,7 @@
     update(dt) {
       this.time += dt;
       const t = this.time;
-      const { width, height, quality } = this.engine;
+      const { width, height, quality, size, spread } = this.engine;
 
       if (t < this.burstUntil && t >= this.nextBurst) {
         this.fireBurst(-1);
@@ -721,7 +721,7 @@
       }
 
       if (t > 0.5 && t < this.rainUntil) {
-        this.rainAcc += dt * 30 * this.intensity * quality;
+        this.rainAcc += dt * 30 * this.intensity * quality * spread;
         while (this.rainAcc >= 1) {
           this.rainAcc--;
           this.spawn(rand(-0.05, 1.05) * width, -height * 0.08, rand(-20, 20), rand(30, 80), rand(0.45, 1.25), false);
@@ -741,10 +741,10 @@
             p.vx *= 1 - Math.min(1, 1.5 * dt);
           }
           p.swayPhase += p.sway * dt;
-          const flutter = p.vy > 0 && !p.coin ? Math.sin(p.swayPhase) * width * 0.11 * p.z : 0;
+          const flutter = p.vy > 0 && !p.coin ? Math.sin(p.swayPhase) * size * 0.11 * p.z : 0;
           p.x += (p.vx + flutter) * dt;
           p.y += p.vy * dt;
-          p.rotation += p.spin * dt * (p.vy > 0 ? 0.55 : 1) + (flutter / width) * dt * 2;
+          p.rotation += p.spin * dt * (p.vy > 0 ? 0.55 : 1) + (flutter / size) * dt * 2;
           p.flip += p.flipSpeed * dt;
 
           if (p.coin && Math.random() < dt * 1.2) {
@@ -814,8 +814,8 @@
       ctx.globalCompositeOperation = 'lighter';
       for (const m of this.muzzles) {
         const k = 1 - m.t / 0.18;
-        drawGlow(ctx, sprites.glowGold, m.x, m.y, width * 0.5 * k, 0.9 * k);
-        drawGlow(ctx, sprites.glowWhite, m.x, m.y, width * 0.18 * k, k);
+        drawGlow(ctx, sprites.glowGold, m.x, m.y, this.engine.size * 0.5 * k, 0.9 * k);
+        drawGlow(ctx, sprites.glowWhite, m.x, m.y, this.engine.size * 0.18 * k, k);
       }
       ctx.lineCap = 'round';
       for (const s of this.sparks) {
@@ -1048,7 +1048,7 @@
       this.twinkles = Array.from({ length: 26 }, () => ({
         x: rand(0, width),
         y: rand(0, height),
-        size: rand(0.03, 0.07) * width,
+        size: rand(0.03, 0.07) * this.engine.size,
         phase: rand(0, TAU),
         speed: rand(1.5, 3.5),
         sprite: pick(['glintWhite', 'glintWhite', 'glintPink'])
@@ -1205,8 +1205,8 @@
       // Glare at the point of impact.
       ctx.globalCompositeOperation = 'lighter';
       const pulse = 0.8 + 0.2 * Math.sin(t * 20);
-      drawGlow(ctx, sprites.glowWhite, this.impact.x, this.impact.y, width * 0.28 * pulse, 0.8);
-      drawGlow(ctx, sprites.glintWhite, this.impact.x, this.impact.y, width * 0.45 * pulse, 0.9);
+      drawGlow(ctx, sprites.glowWhite, this.impact.x, this.impact.y, this.engine.size * 0.28 * pulse, 0.8);
+      drawGlow(ctx, sprites.glintWhite, this.impact.x, this.impact.y, this.engine.size * 0.45 * pulse, 0.9);
       ctx.restore();
     }
 
@@ -1252,6 +1252,10 @@
       const t = this.time;
       if (t < this.warpStart - 0.1) return;
       const { width, height, sprites } = this.engine;
+      // Follow the window if it's resized mid-effect.
+      this.center = { x: width / 2, y: height * 0.44 };
+      this.R = Math.min(width, height) * 0.5;
+      this.maxDim = Math.hypot(width, height);
       const fadeIn = easeOutCubic((t - (this.warpStart - 0.1)) / 0.5);
       const fadeOut = 1 - clamp((t - (this.novaAt + 0.05)) / (this.duration - this.novaAt - 0.05), 0, 1);
       const alpha = fadeIn * fadeOut;
@@ -1327,7 +1331,7 @@
         const lx = width * 0.8;
         const ly = height * 0.18;
         for (const [k, size, key] of [[0.4, 0.07, 'glowPurple'], [0.75, 0.12, 'glowBlue'], [1.3, 0.05, 'glowPink']]) {
-          drawGlow(ctx, sprites[key], cx - (lx - cx) * k, cy - (ly - cy) * k, width * size, alpha * appear * 0.3);
+          drawGlow(ctx, sprites[key], cx - (lx - cx) * k, cy - (ly - cy) * k, this.engine.size * size, alpha * appear * 0.3);
         }
       }
 
@@ -1342,7 +1346,7 @@
         const k = s.life / 0.8;
         const x = s.x + Math.cos(s.angle) * s.speed * s.life;
         const y = s.y + Math.sin(s.angle) * s.speed * s.life;
-        const tail = width * 0.22;
+        const tail = this.engine.size * 0.22;
         const g = ctx.createLinearGradient(x, y, x - Math.cos(s.angle) * tail, y - Math.sin(s.angle) * tail);
         g.addColorStop(0, `rgba(255, 255, 255, ${1 - k})`);
         g.addColorStop(1, 'rgba(255, 255, 255, 0)');
@@ -1369,7 +1373,7 @@
       this.engine = engine;
       this.time = 0;
       this.done = false;
-      this.toSpawn = Math.round(clamp(8 + Math.sqrt(count) * 6, 10, 70) * engine.quality);
+      this.toSpawn = Math.round(clamp(8 + Math.sqrt(count) * 6, 10, 70) * engine.quality * engine.spread);
       this.spawnWindow = clamp(1.8 + count * 0.08, 1.8, 5);
       this.duration = this.spawnWindow + 8;
       this.spawned = 0;
@@ -1384,7 +1388,7 @@
       const bokeh = kind === 'petal' && Math.random() < 0.08;
       const z = bokeh ? rand(1.7, 2.2) : rand(0.5, 1.2);
       const sprite = bokeh ? 'petalBokeh' : z < 0.75 ? `${kind}Far` : kind;
-      const base = ROSE_SIZES[kind] * width;
+      const base = ROSE_SIZES[kind] * this.engine.size;
       const p = {
         kind,
         z,
@@ -1397,7 +1401,7 @@
         rotation: rand(-0.6, 0.6),
         spin: rand(-0.6, 0.6) * (kind === 'petal' ? 2 : 1),
         sway: rand(0.5, 1.2),
-        swayAmp: width * rand(0.03, 0.07) * z,
+        swayAmp: this.engine.size * rand(0.03, 0.07) * z,
         phase: rand(0, TAU),
         flipA: rand(0, TAU),
         flipB: rand(0, TAU),
@@ -1425,7 +1429,7 @@
         p.flipA += p.flipSpeed * dt;
         p.flipB += p.flipSpeed * 0.7 * dt;
         if (p.kind !== 'petal' && p.z > 0.8 && Math.random() < dt * 0.6) {
-          this.sparkles.push({ x: p.x + rand(-0.4, 0.4) * p.size, y: p.y + rand(-0.4, 0.4) * p.size, life: 0, max: rand(0.5, 0.9), size: rand(0.03, 0.05) * width });
+          this.sparkles.push({ x: p.x + rand(-0.4, 0.4) * p.size, y: p.y + rand(-0.4, 0.4) * p.size, life: 0, max: rand(0.5, 0.9), size: rand(0.03, 0.05) * this.engine.size });
         }
       }
       this.particles = this.particles.filter((p) => p.y < height + p.size);
@@ -1506,9 +1510,19 @@
       new ResizeObserver(() => this.resize()).observe(canvas);
     }
 
-    /** Size unit that scales with the window (1 at 420px wide). */
+    /** Width of the largest 9:16 box that fits the window: effects are sized by it, so they look the same in any window shape. */
+    get size() {
+      return Math.min(this.width, this.height * (9 / 16));
+    }
+
+    /** How many 9:16 boxes wide the window is (1 for 9:16); more particles fill wider windows. */
+    get spread() {
+      return clamp(this.width / this.size, 1, 2.5);
+    }
+
+    /** Size unit that scales with the window (1 at 420px). */
     get unit() {
-      return this.width / 420;
+      return this.size / 420;
     }
 
     resize() {
@@ -1520,7 +1534,7 @@
       this.canvas.width = Math.round(this.width * dpr);
       this.canvas.height = Math.round(this.height * dpr);
       // Render sprites at the size they're shown, so they stay sharp in big windows.
-      const spriteScale = Math.round(dpr * clamp(this.width / 400, 1, 3) * 4) / 4;
+      const spriteScale = Math.round(dpr * clamp(this.size / 400, 1, 3) * 4) / 4;
       if (spriteScale !== this.spriteScale) {
         this.spriteScale = spriteScale;
         this.sprites = buildSprites(spriteScale);

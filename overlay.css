@@ -178,6 +178,14 @@ input:focus-visible {
   color: #fff;
 }
 
+.icon-btn.text {
+  width: auto;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
 #btn-pin[aria-pressed="true"] {
   color: var(--accent-cyan);
 }
@@ -482,6 +490,7 @@ input:focus-visible {
 
 .stats {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
 }
 
@@ -506,6 +515,7 @@ input:focus-visible {
 
 .controls-row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
 }
@@ -529,21 +539,22 @@ input:focus-visible {
 /* ------------------------------------------------------------------ */
 /* Stream layer: what viewers see                                      */
 /*                                                                     */
-/* The window is 9:16 like a TikTok LIVE. Safe zones keep everything   */
-/* clear of TikTok's own UI:                                           */
+/* Safe zones keep everything clear of TikTok's own UI:              */
 /*   top    ~15%  profile pill, "Gaming Ranking", "LIVE Goal"          */
 /*   bottom ~12%  link / guests / share buttons                        */
-/*   sides   ~9%  cropped on tall phones (the video fills the height)  */
-/* Sizes use vw so the layout scales with the window.                  */
+/*   sides  ~11%  cropped on tall phones (the video fills the height)  */
+/* Sizes use --u: 1% of the width of the largest 9:16 box that fits    */
+/* the window, so the layout scales with any window size or shape.     */
 /* ------------------------------------------------------------------ */
 
 .stage {
   --safe-top: 15vh;
   --safe-bottom: 12vh;
   --safe-x: 11vw;
+  --u: min(1vw, 0.5625vh);
   position: absolute;
   inset: 0;
-  font-size: clamp(11px, 3.1vw, 26px);
+  font-size: clamp(10px, calc(3.1 * var(--u)), 30px);
 }
 
 /* Gift alerts sit above the effects canvas so the donor is always visible. */
@@ -553,20 +564,22 @@ input:focus-visible {
   top: var(--safe-top);
   left: var(--safe-x);
   right: var(--safe-x);
+  max-width: calc(78 * var(--u)); /* stays card-shaped in a wide window */
+  margin: 0 auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.6vw;
+  gap: calc(1.6 * var(--u));
   pointer-events: none;
 }
 
 .gift-alert {
   display: flex;
   align-items: center;
-  gap: 3vw;
+  gap: calc(3 * var(--u));
   width: 100%;
-  padding: 2.6vw 3.2vw;
-  border-radius: 4vw;
+  padding: calc(2.6 * var(--u)) calc(3.2 * var(--u));
+  border-radius: calc(4 * var(--u));
   background: var(--panel-strong);
   border: 1px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
@@ -596,8 +609,8 @@ input:focus-visible {
 }
 
 .gift-alert-avatar {
-  width: 13vw;
-  height: 13vw;
+  width: calc(13 * var(--u));
+  height: calc(13 * var(--u));
   border: 2px solid var(--accent-cyan);
 }
 
@@ -637,16 +650,16 @@ input:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 1.4vw;
+  gap: calc(1.4 * var(--u));
   width: 100%;
 }
 
 .toast {
   display: flex;
   align-items: center;
-  gap: 2vw;
+  gap: calc(2 * var(--u));
   max-width: 100%;
-  padding: 1.4vw 3vw 1.4vw 1.4vw;
+  padding: calc(1.4 * var(--u)) calc(3 * var(--u)) calc(1.4 * var(--u)) calc(1.4 * var(--u));
   border-radius: 999px;
   background: var(--panel);
   border: 1px solid rgba(254, 44, 85, 0.35);
@@ -658,8 +671,8 @@ input:focus-visible {
 }
 
 .toast-avatar {
-  width: 6.5vw;
-  height: 6.5vw;
+  width: calc(6.5 * var(--u));
+  height: calc(6.5 * var(--u));
 }
 
 .toast-text {
@@ -681,15 +694,16 @@ input:focus-visible {
   bottom: var(--safe-bottom);
   display: flex;
   flex-direction: column;
-  gap: 1.2vw;
-  width: 60vw;
+  gap: calc(1.2 * var(--u));
+  width: calc(60 * var(--u));
+  max-width: calc(100vw - 2 * var(--safe-x));
   max-height: calc(100vh - var(--safe-top) - var(--safe-bottom) - 22vh);
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .queue.empty {
   opacity: 0;
-  transform: translateY(2vw);
+  transform: translateY(calc(2 * var(--u)));
   pointer-events: none;
 }
 
@@ -701,7 +715,7 @@ input:focus-visible {
 
 .queue-header {
   align-self: flex-end;
-  padding: 0.6vw 2.4vw;
+  padding: calc(0.6 * var(--u)) calc(2.4 * var(--u));
   border-radius: 999px;
   background: var(--panel);
   color: var(--text-muted);
@@ -719,7 +733,7 @@ input:focus-visible {
 .queue-list {
   display: flex;
   flex-direction: column;
-  gap: 1.4vw;
+  gap: calc(1.4 * var(--u));
   min-height: 0;
   margin: 0;
   padding: 0;
@@ -735,8 +749,8 @@ input:focus-visible {
 .queue-hint {
   display: none;
   margin: 0;
-  padding: 2vw 3vw;
-  border-radius: 3vw;
+  padding: calc(2 * var(--u)) calc(3 * var(--u));
+  border-radius: calc(3 * var(--u));
   background: var(--panel);
   color: var(--text-faint);
   font-size: 0.8em;
@@ -750,8 +764,8 @@ input:focus-visible {
 
 .donor-card {
   flex-shrink: 0;
-  padding: 2vw 2.2vw;
-  border-radius: 3.4vw;
+  padding: calc(2 * var(--u)) calc(2.2 * var(--u));
+  border-radius: calc(3.4 * var(--u));
   background: var(--panel-strong);
   border: 1px solid rgba(255, 255, 255, 0.1);
   animation: chat-in 0.3s ease-out;
@@ -777,13 +791,13 @@ input:focus-visible {
 .donor-head {
   display: flex;
   align-items: center;
-  gap: 2vw;
+  gap: calc(2 * var(--u));
 }
 
 .donor-avatar {
   flex-shrink: 0;
-  width: 9vw;
-  height: 9vw;
+  width: calc(9 * var(--u));
+  height: calc(9 * var(--u));
   border-radius: 50%;
   object-fit: cover;
   background: rgba(255, 255, 255, 0.1);
@@ -808,7 +822,7 @@ input:focus-visible {
 .donor-sub {
   display: flex;
   align-items: baseline;
-  gap: 1.6vw;
+  gap: calc(1.6 * var(--u));
   min-width: 0;
 }
 
@@ -833,7 +847,7 @@ input:focus-visible {
 .donor-actions {
   display: none;
   flex-shrink: 0;
-  gap: 1vw;
+  gap: calc(1 * var(--u));
 }
 
 .app.pointer-active .donor-actions {
@@ -843,8 +857,8 @@ input:focus-visible {
 .donor-action {
   display: grid;
   place-items: center;
-  width: 7.5vw;
-  height: 7.5vw;
+  width: calc(7.5 * var(--u));
+  height: calc(7.5 * var(--u));
   min-width: 26px;
   min-height: 26px;
   padding: 0;
@@ -877,17 +891,17 @@ input:focus-visible {
 .donor-messages {
   display: flex;
   flex-direction: column;
-  gap: 0.8vw;
-  margin: 1.6vw 0 0;
+  gap: calc(0.8 * var(--u));
+  margin: calc(1.6 * var(--u)) 0 0;
   padding: 0;
   list-style: none;
 }
 
 .donor-message {
   width: 100%;
-  padding: 1.2vw 2.6vw;
+  padding: calc(1.2 * var(--u)) calc(2.6 * var(--u));
   border: 1px solid transparent;
-  border-radius: 2.4vw;
+  border-radius: calc(2.4 * var(--u));
   background: rgba(255, 255, 255, 0.07);
   font-size: 0.95em;
   line-height: 1.35;
@@ -923,7 +937,7 @@ input:focus-visible {
 }
 
 .donor-waiting {
-  padding: 1vw 2.6vw;
+  padding: calc(1 * var(--u)) calc(2.6 * var(--u));
   color: var(--text-faint);
   font-size: 0.85em;
   font-style: italic;
@@ -995,7 +1009,7 @@ input:focus-visible {
 }
 
 @keyframes card-out {
-  to { opacity: 0; transform: translateX(6vw); }
+  to { opacity: 0; transform: translateX(calc(6 * var(--u))); }
 }
 
 /* Outline pulse only: animating the background would let effects show through. */
@@ -1019,5 +1033,43 @@ input:focus-visible {
   .app.shake,
   .gift-alert-icon {
     animation: none;
+  }
+}
+
+/* Resize grip: bottom-right corner, only while you're pointing at the window. */
+.resize-grip {
+  position: absolute;
+  z-index: 40;
+  right: 0;
+  bottom: 0;
+  width: 22px;
+  height: 22px;
+  cursor: nwse-resize;
+  opacity: 0;
+  transition: opacity 0.2s;
+  background:
+    linear-gradient(135deg, transparent 0 55%, rgba(255, 255, 255, 0.75) 55% 62%, transparent 62% 72%,
+      rgba(255, 255, 255, 0.75) 72% 79%, transparent 79%);
+  border-bottom-right-radius: 6px;
+}
+
+.app.pointer-active .resize-grip,
+.app[data-view="setup"] .resize-grip {
+  opacity: 1;
+}
+
+.app[data-view="live"]:not(.pointer-active) .resize-grip {
+  pointer-events: none;
+}
+
+/* Narrow window: keep every title-bar button reachable. */
+@media (max-width: 340px) {
+  .brand-name,
+  .status-text {
+    display: none;
+  }
+
+  .status {
+    padding: 4px 6px;
   }
 }

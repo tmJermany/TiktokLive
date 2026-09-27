@@ -36,7 +36,7 @@ Demo mode simulates a busy stream:
 
 ### Stream layout
 
-The window is locked to **9:16**, the same shape as a TikTok LIVE, so you can place it over the part of your screen you stream. Only things meant for viewers are shown, and they stay out of TikTok's own interface:
+The window opens at **9:16**, the same shape as a TikTok LIVE. Place it over the part of your screen you stream, and resize it to match that area. Only things meant for viewers are shown, and they stay out of TikTok's own interface:
 
 | Zone | TikTok puts here | Overlay keeps clear |
 | --- | --- | --- |
@@ -80,6 +80,8 @@ Other details:
 | Random donor pick | **🎲 Random pick** (or `R`) marks one waiting donor with 🎲, each with an equal chance. `Esc` clears it. |
 | Test effects | The 💸 🌌 🌹 buttons, or keys `1` `2` `3`. These work in live mode too. |
 | Move the window | Move the mouse over the overlay, then drag the title bar. |
+| Resize the window | Drag the grip in the bottom-right corner (or the window edges). Any size or shape from 240×320 up works. Everything scales to fit, and the overlay reopens at the size and position you leave it. |
+| Back to 9:16 | The **9:16** button in the title bar makes the window TikTok's shape again, keeping its height. |
 | Always on top | The pin button in the title bar. |
 | Change username | **Disconnect** |
 
