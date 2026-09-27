@@ -2,9 +2,11 @@
 
 A floating, always-on-top Electron overlay for TikTok LIVE. Enter your TikTok username and it connects to your stream. Gifts trigger full-window effects that show the donor's name and profile picture. Everyone who sends a Money Gun or Galaxy goes into a **donor queue** with their messages, so you can copy the username they type and mark them done. Regular chat is not shown.
 
-- **Money Gun**: bills and coins fire from the bottom corners, then rain down across the window.
-- **Galaxy**: the screen cracks, shatters, and opens onto a rotating spiral galaxy.
-- **Roses**: roses and petals fall gently from the top.
+- **Money Gun**: money guns fire from the bottom corners with muzzle flashes, sparks and gold light rays. Detailed banknotes and gold coins tumble in 3D at different depths, then rain down and pile up at the bottom.
+- **Galaxy**: an impact cracks the screen (with a shockwave and colour fringes), the glass shatters in slow motion, a hyperspace jump opens onto a spiral galaxy with nebulae and a lens flare, and it all collapses into a supernova.
+- **Roses**: roses, rosebuds and petals drift down with depth of field (distant ones soft, some large petals passing close), a soft pink glow and sparkles.
+
+The effects scale with the window, and their drawings are rendered at the size they're shown, so they stay sharp in a big window. If your PC gets busy (game plus stream), the particle count drops automatically to keep things smooth.
 
 You don't need a login or API keys, only your username.
 
