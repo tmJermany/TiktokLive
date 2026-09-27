@@ -652,6 +652,17 @@ input:focus-visible {
   user-select: text;
 }
 
+.spotlight-text.muted {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.spotlight-gifts {
+  margin-top: 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
 .spotlight-close {
   position: absolute;
   top: 6px;
@@ -679,6 +690,13 @@ input:focus-visible {
   padding: 10px 14px 6px;
   font-weight: 700;
   font-size: 13px;
+}
+
+.chat-sub {
+  margin-left: 4px;
+  color: var(--text-faint);
+  font-weight: 400;
+  font-size: 11px;
 }
 
 .chat-hint {
@@ -734,6 +752,10 @@ input:focus-visible {
   animation: picked 0.9s ease-out;
 }
 
+.chat-item.updated {
+  animation: updated 1.2s ease-out;
+}
+
 .chat-avatar {
   width: 28px;
   height: 28px;
@@ -741,8 +763,18 @@ input:focus-visible {
 }
 
 .chat-content {
+  flex: 1;
   min-width: 0;
   line-height: 1.35;
+}
+
+.donor-badges {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--text-muted);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .chat-name {
@@ -756,26 +788,16 @@ input:focus-visible {
   word-break: break-word;
 }
 
+.chat-empty.system {
+  padding: 8px 12px;
+  color: var(--warning);
+}
+
 .chat-empty {
   padding: 24px 12px;
   color: var(--text-faint);
   text-align: center;
   font-size: 12.5px;
-}
-
-.chat-jump {
-  position: absolute;
-  bottom: 56px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 5px 12px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--accent-pink);
-  color: #fff;
-  font-size: 12px;
-  font-weight: 600;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
 }
 
 .chat-footer {
@@ -856,6 +878,11 @@ input:focus-visible {
 @keyframes picked {
   0%, 100% { box-shadow: 0 0 0 0 rgba(37, 244, 238, 0); }
   30% { box-shadow: 0 0 0 4px rgba(37, 244, 238, 0.45); }
+}
+
+@keyframes updated {
+  0% { background: rgba(254, 44, 85, 0.25); }
+  100% { background: transparent; }
 }
 
 @keyframes bob {

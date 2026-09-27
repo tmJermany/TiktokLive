@@ -104,7 +104,7 @@ function sendToRenderer(type, data) {
   broadcast(type, data);
 }
 
-/** Resolves avatars while preserving event order per stream (gifts, chat). */
+/** Resolves avatars while preserving event order. */
 function orderedRelay(type) {
   let chain = Promise.resolve();
   return (event) => {
@@ -118,7 +118,8 @@ function orderedRelay(type) {
 }
 
 connector.on('gift', orderedRelay('gift'));
-connector.on('chat', orderedRelay('chat'));
+// Chat is only used to look up donors' last messages, so skip avatar downloads.
+connector.on('chat', (data) => sendToRenderer('chat', data));
 connector.on('viewers', (data) => sendToRenderer('viewers', data));
 connector.on('status', (data) => sendToRenderer('status', data));
 connector.on('log', (message) => console.warn(message));

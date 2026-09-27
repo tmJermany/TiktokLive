@@ -1,6 +1,6 @@
 /**
- * Overlay renderer: username setup, gift alerts + effects, and the chat panel
- * with viewer selection. Talks to the main process only through
+ * Overlay renderer: username setup, gift alerts + effects, and the big-donor
+ * selector (Money Gun / Galaxy donors with their last chat message). Talks to the main process only through
  * window.overlayAPI (see preload.js).
  */
 (function () {
@@ -8,7 +8,8 @@
 
   const api = window.overlayAPI;
   const USERNAME_PATTERN = /^[A-Za-z0-9._]{2,24}$/;
-  const MAX_CHAT_ITEMS = 80;
+  const MAX_DONORS = 200;
+  const MAX_REMEMBERED_CHATTERS = 1000;
   const MAX_VISIBLE_TOASTS = 3;
   const MIN_ALERT_MS = 4000;
 
@@ -43,8 +44,8 @@
     spotlightAvatar: $('spotlight-avatar'),
     spotlightName: $('spotlight-name'),
     spotlightText: $('spotlight-text'),
+    spotlightGifts: $('spotlight-gifts'),
     chatList: $('chat-list'),
-    chatJump: $('chat-jump'),
     fx: $('fx')
   };
 
@@ -57,8 +58,9 @@
     mode: null,
     username: '',
     coins: 0,
-    chat: new Map(), // message id -> { message, node }
-    selectedId: null,
+    donors: new Map(), // username -> { user, message, gifts, coins, node }, oldest donation first
+    lastMessages: new Map(), // username -> { text, timestamp } for every chatter
+    selectedUser: null,
     epicQueue: [],
     epicPlaying: false
   };
@@ -146,7 +148,7 @@
     el.coins.textContent = '0';
     el.viewers.textContent = '0';
     stopEpics();
-    resetChat();
+    resetDonors();
   }
 
   function enterLive({ mode, username }) {
@@ -206,11 +208,12 @@
     state.coins += Number(gift.diamonds) || 0;
     el.coins.textContent = numberFormat.format(state.coins);
 
-    if (gift.effect === 'rose') {
+    if (!isBigGift(gift)) {
       effects.play('rose', { count: gift.count });
       showToast(gift);
       return;
     }
+    addDonor(gift);
     state.epicQueue.push(gift);
     if (!state.epicPlaying) playNextEpic();
   }
@@ -296,141 +299,191 @@
   }
 
   // -------------------------------------------------------------------------
-  // Chat + viewer selection
+  // Big donors: one row per Money Gun / Galaxy donor with their last message
   // -------------------------------------------------------------------------
 
-  function isNearBottom() {
-    const list = el.chatList;
-    return list.scrollHeight - list.scrollTop - list.clientHeight < 40;
+  /** Gifts that make someone a "big donor" (Money Gun, Galaxy, or equally valuable gifts). */
+  function isBigGift(gift) {
+    return gift.effect === 'moneygun' || gift.effect === 'galaxy';
   }
 
-  function scrollToBottom() {
-    el.chatList.scrollTop = el.chatList.scrollHeight;
-    el.chatJump.hidden = true;
-  }
-
-  function resetChat() {
-    state.chat.clear();
-    state.selectedId = null;
-    el.chatList.replaceChildren(emptyChatNode());
-    el.spotlight.hidden = true;
-    el.chatJump.hidden = true;
-  }
-
-  function emptyChatNode() {
-    const li = document.createElement('li');
-    li.className = 'chat-empty';
-    li.textContent = 'Waiting for chat messages…';
-    return li;
-  }
-
-  function appendChatNode(li) {
-    const stick = isNearBottom();
-    el.chatList.querySelector('.chat-empty')?.remove();
-    el.chatList.append(li);
-
-    while (state.chat.size > MAX_CHAT_ITEMS) {
-      const [oldestId, oldest] = state.chat.entries().next().value;
-      if (oldestId === state.selectedId) {
-        // Keep the selected message alive; drop the next-oldest instead.
-        const entries = [...state.chat.entries()];
-        const [id, entry] = entries[1];
-        entry.node.remove();
-        state.chat.delete(id);
-      } else {
-        oldest.node.remove();
-        state.chat.delete(oldestId);
-      }
+  /**
+   * Remembers every viewer's latest message (not displayed) so a donor's last
+   * message is known even if they chatted before donating.
+   */
+  function rememberMessage(message) {
+    const key = message.user.username;
+    state.lastMessages.delete(key);
+    state.lastMessages.set(key, { text: message.text, timestamp: message.timestamp });
+    if (state.lastMessages.size > MAX_REMEMBERED_CHATTERS) {
+      state.lastMessages.delete(state.lastMessages.keys().next().value);
     }
-
-    if (stick) scrollToBottom();
-    else el.chatJump.hidden = false;
   }
 
   function handleChat(message) {
     if (!acceptingEvents()) return;
+    rememberMessage(message);
 
+    const donor = state.donors.get(message.user.username);
+    if (!donor) return;
+    donor.message = state.lastMessages.get(message.user.username);
+    renderDonor(donor);
+    flash(donor.node.querySelector('.chat-item'), 'updated');
+    if (state.selectedUser === donor.user.username) renderSpotlight();
+  }
+
+  function addDonor(gift) {
+    const key = gift.user.username;
+    let donor = state.donors.get(key);
+    if (donor) {
+      state.donors.delete(key); // re-insert so the Map stays oldest-first
+    } else {
+      donor = {
+        user: gift.user,
+        message: state.lastMessages.get(key) || null,
+        gifts: { moneygun: 0, galaxy: 0 },
+        coins: 0,
+        node: createDonorNode(key)
+      };
+    }
+    donor.user = gift.user;
+    donor.gifts[gift.effect] += gift.count;
+    donor.coins += Number(gift.diamonds) || 0;
+    state.donors.set(key, donor);
+
+    renderDonor(donor);
+    el.chatList.querySelector('.chat-empty:not(.system)')?.remove();
+    el.chatList.prepend(donor.node); // newest donation on top
+    el.chatList.scrollTop = 0;
+    trimDonors();
+    if (state.selectedUser === key) renderSpotlight();
+  }
+
+  function trimDonors() {
+    for (const [key, donor] of state.donors) {
+      if (state.donors.size <= MAX_DONORS) break;
+      if (key === state.selectedUser) continue;
+      donor.node.remove();
+      state.donors.delete(key);
+    }
+  }
+
+  function createDonorNode(username) {
     const li = document.createElement('li');
     const button = document.createElement('button');
     button.type = 'button';
-    button.className = 'chat-item';
-    button.dataset.id = message.id;
-    button.title = `Select @${message.user.username}`;
+    button.className = 'chat-item donor';
+    button.dataset.username = username;
+    button.title = `Select @${username}`;
 
     const avatar = document.createElement('img');
     avatar.className = 'chat-avatar';
-    avatar.src = message.user.avatar;
     avatar.alt = '';
 
     const content = document.createElement('div');
     content.className = 'chat-content';
     const name = document.createElement('span');
     name.className = 'chat-name';
-    name.textContent = message.user.nickname;
     const text = document.createElement('span');
     text.className = 'chat-text';
-    text.textContent = message.text;
     content.append(name, text);
 
-    button.append(avatar, content);
-    li.append(button);
+    const badges = document.createElement('span');
+    badges.className = 'donor-badges';
 
-    state.chat.set(message.id, { message, node: li });
-    appendChatNode(li);
+    button.append(avatar, content, badges);
+    li.append(button);
+    return li;
+  }
+
+  function giftSummary(gifts) {
+    return ['moneygun', 'galaxy']
+      .filter((effect) => gifts[effect] > 0)
+      .map((effect) => `${GIFT_META[effect].icon}×${gifts[effect]}`)
+      .join(' ');
+  }
+
+  /** Row format: "username: last message", or just "username" if they haven't chatted. */
+  function renderDonor(donor) {
+    const { node, user, message } = donor;
+    node.querySelector('.chat-avatar').src = user.avatar;
+    node.querySelector('.chat-name').textContent = message ? `${user.username}:` : user.username;
+    node.querySelector('.chat-text').textContent = message ? message.text : '';
+    node.querySelector('.donor-badges').textContent = giftSummary(donor.gifts);
+  }
+
+  function flash(node, className) {
+    node.classList.remove(className);
+    void node.offsetWidth; // restart the CSS animation
+    node.classList.add(className);
+  }
+
+  function resetDonors() {
+    state.donors.clear();
+    state.lastMessages.clear();
+    state.selectedUser = null;
+    el.chatList.replaceChildren(emptyDonorsNode());
+    el.spotlight.hidden = true;
+  }
+
+  function emptyDonorsNode() {
+    const li = document.createElement('li');
+    li.className = 'chat-empty';
+    li.textContent = 'Money Gun and Galaxy donors will appear here.';
+    return li;
   }
 
   function addSystemMessage(text) {
     const li = document.createElement('li');
-    li.className = 'chat-empty';
+    li.className = 'chat-empty system';
     li.textContent = text;
-    const stick = isNearBottom();
-    el.chatList.append(li);
-    if (stick) scrollToBottom();
+    el.chatList.prepend(li);
+    el.chatList.scrollTop = 0;
   }
 
-  function selectMessage(id, { fromRandom = false } = {}) {
-    const entry = state.chat.get(id);
-    if (!entry) return;
-    if (state.selectedId === id && !fromRandom) {
+  function selectDonor(username, { fromRandom = false } = {}) {
+    const donor = state.donors.get(username);
+    if (!donor) return;
+    if (state.selectedUser === username && !fromRandom) {
       clearSelection();
       return;
     }
     el.chatList.querySelector('.chat-item.selected')?.classList.remove('selected');
-    const button = entry.node.querySelector('.chat-item');
+    const button = donor.node.querySelector('.chat-item');
     button.classList.add('selected');
-    state.selectedId = id;
-
-    const { user, text } = entry.message;
-    el.spotlightAvatar.src = user.avatar;
-    el.spotlightAvatar.alt = user.nickname;
-    el.spotlightName.textContent = `${user.nickname}  ·  @${user.username}`;
-    el.spotlightText.textContent = text;
-    el.spotlight.hidden = false;
+    state.selectedUser = username;
+    renderSpotlight();
 
     if (fromRandom) {
-      button.classList.remove('picked');
-      void button.offsetWidth;
-      button.classList.add('picked');
+      flash(button, 'picked');
       button.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
   }
 
+  function renderSpotlight() {
+    const donor = state.donors.get(state.selectedUser);
+    if (!donor) return;
+    const { user, message } = donor;
+    el.spotlightAvatar.src = user.avatar;
+    el.spotlightAvatar.alt = user.nickname;
+    el.spotlightName.textContent = `${user.nickname}  ·  @${user.username}`;
+    el.spotlightText.textContent = message ? message.text : 'No messages yet';
+    el.spotlightText.classList.toggle('muted', !message);
+    el.spotlightGifts.textContent = `Sent ${giftSummary(donor.gifts)}`;
+    el.spotlight.hidden = false;
+  }
+
   function clearSelection() {
     el.chatList.querySelector('.chat-item.selected')?.classList.remove('selected');
-    state.selectedId = null;
+    state.selectedUser = null;
     el.spotlight.hidden = true;
   }
 
-  /** Picks a random viewer (each chatter weighted equally) and selects their latest message. */
-  function pickRandomViewer() {
-    const latestByUser = new Map();
-    for (const [id, { message }] of state.chat) {
-      latestByUser.set(message.user.username, id);
-    }
-    const ids = [...latestByUser.values()];
-    if (!ids.length) return;
-    const id = ids[Math.floor(Math.random() * ids.length)];
-    selectMessage(id, { fromRandom: true });
+  /** Picks one big donor at random, each donor weighted equally. */
+  function pickRandomDonor() {
+    const usernames = [...state.donors.keys()];
+    if (!usernames.length) return;
+    selectDonor(usernames[Math.floor(Math.random() * usernames.length)], { fromRandom: true });
   }
 
   // -------------------------------------------------------------------------
@@ -449,15 +502,11 @@
   el.input.addEventListener('input', () => showError(''));
 
   $('btn-disconnect').addEventListener('click', disconnect);
-  $('btn-random').addEventListener('click', pickRandomViewer);
+  $('btn-random').addEventListener('click', pickRandomDonor);
   $('btn-spotlight-close').addEventListener('click', clearSelection);
-  el.chatJump.addEventListener('click', scrollToBottom);
-  el.chatList.addEventListener('scroll', () => {
-    if (isNearBottom()) el.chatJump.hidden = true;
-  });
   el.chatList.addEventListener('click', (event) => {
     const item = event.target.closest('.chat-item');
-    if (item) selectMessage(item.dataset.id);
+    if (item) selectDonor(item.dataset.username);
   });
   document.querySelectorAll('[data-test]').forEach((button) => {
     button.addEventListener('click', () => testGift(button.dataset.test));

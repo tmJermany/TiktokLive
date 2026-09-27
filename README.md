@@ -1,6 +1,6 @@
 # TikTok LIVE Donation Overlay
 
-A floating, always-on-top Electron overlay for TikTok LIVE. Enter your TikTok username and it connects to your stream. Gifts trigger full-window effects that show the donor's name and profile picture, and live chat appears below so you can pick viewers.
+A floating, always-on-top Electron overlay for TikTok LIVE. Enter your TikTok username and it connects to your stream. Gifts trigger full-window effects that show the donor's name and profile picture. Below, a **big donor selector** lists everyone who sent a Money Gun or Galaxy, so you can pick among them. Regular chat is not shown.
 
 - **Money Gun**: bills and coins fire from the bottom corners, then rain down across the window.
 - **Galaxy**: the screen cracks, shatters, and opens onto a rotating spiral galaxy.
@@ -32,10 +32,24 @@ Demo mode simulates a busy stream:
 
 ## Using the overlay
 
+### Big donor selector
+
+The panel at the bottom lists **only viewers who sent a Money Gun or Galaxy**. Each donor gets one row:
+
+```
+username: their last chat message      💸×2 🌌×1
+```
+
+- If a donor hasn't chatted, the row shows just their username. Their message appears as soon as they write one. A message sent *before* donating counts too.
+- The newest donation moves that donor to the top. Donors stay on the list for the whole session.
+- The badges show how many Money Guns (💸) and Galaxies (🌌) each donor sent.
+- Roses and other small gifts still play their effect and a small pop-up message, but they don't add anyone to the list.
+- When someone donates, the donor card appears at the top automatically, then disappears. Their row stays in the list below.
+
 | Action | How |
 | --- | --- |
-| Select a viewer | Click a chat message. It's pinned in the **Selected viewer** card. Click it again, or press `Esc`, to clear. |
-| Random viewer pick | **🎲 Random pick** picks one recent chatter, each with an equal chance. |
+| Select a donor | Click their row. They're pinned in the **Selected viewer** card (name, last message, gifts), which updates live if they chat again. Click again, or press `Esc`, to clear. |
+| Random donor pick | **🎲 Random pick** picks one big donor, each donor with an equal chance. |
 | Test effects | The 💸 🌌 🌹 buttons, or keys `1` `2` `3`. These work in live mode too. |
 | Move the window | Drag the title bar. |
 | Always on top | The pin button in the title bar. |
@@ -74,7 +88,7 @@ While running, the app publishes every event as JSON on `ws://127.0.0.1:21213`:
 { "type": "gift", "data": { "effect": "galaxy", "giftName": "Galaxy", "count": 1, "diamonds": 1000, "user": { "username": "...", "nickname": "...", "avatar": "data:image/..." } } }
 ```
 
-Event types are `gift`, `chat`, `viewers` and `status`. The feed only listens on localhost. Browser pages are accepted only from local origins (file or localhost). Change the port with `OVERLAY_WS_PORT=9000`, or turn the feed off with `OVERLAY_WS_PORT=off`.
+Event types are `gift`, `chat`, `viewers` and `status`. To save bandwidth on busy streams, `chat` events don't include a downloaded avatar; gift events do. The feed only listens on localhost. Browser pages are accepted only from local origins (file or localhost). Change the port with `OVERLAY_WS_PORT=9000`, or turn the feed off with `OVERLAY_WS_PORT=off`.
 
 ## Project layout
 
@@ -84,7 +98,7 @@ Event types are `gift`, `chat`, `viewers` and `status`. The feed only listens on
 | `preload.js` | Security bridge. Exposes only `window.overlayAPI` to the page. |
 | `tiktok-connector.js` | Connection to TikTok LIVE by username, event normalization, and demo mode. |
 | `effects.js` | Canvas effects engine (money rain, galaxy, roses). |
-| `overlay.html` / `overlay.css` / `overlay.js` | UI: username setup, gift alerts, chat and viewer selection. |
+| `overlay.html` / `overlay.css` / `overlay.js` | UI: username setup, gift alerts, big donor selector. |
 | `test/` | Unit tests for the connector (`npm test`). |
 
 ## Security
